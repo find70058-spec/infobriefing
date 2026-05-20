@@ -1006,3 +1006,36 @@ summary {
 .inline-summary dl {
   border-radius: 8px;
 }
+
+/* Article rhythm refinements */
+.article-content section + section {
+  margin-top: 52px;
+  padding-top: 36px;
+}
+
+.article-content h2 {
+  margin-bottom: 22px;
+}
+
+.article-content h2 + .official-links,
+.article-content h2 + .faq-list,
+.article-content h2 + .table-wrap,
+.article-content h2 + ul,
+.article-content h2 + ol,
+.article-content h2 + p {
+  margin-top: 18px;
+}
+
+.official-links {
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.faq-list {
+  gap: 12px;
+  margin-top: 18px;
+}
+
+details {
+  padding: 18px 18px;
+}
