@@ -20,7 +20,7 @@ const articleUrl = (article) => `/guide/${article.slug}/`;
 const categoryUrl = (slug) => `/category/${slug}/`;
 const adsenseClient = "ca-pub-8637673382238209";
 const adsenseSlot = "8447020827";
-const assetVersion = "20260521-current-window";
+const assetVersion = "20260521-issue-cta";
 
 async function ensureDir(path) {
   await mkdir(path, { recursive: true });
@@ -340,9 +340,9 @@ function getPrimaryCtaLabel(article) {
   if (article.title.includes("건강보험")) return "건강보험 확인 바로가기";
   if (article.title.includes("위치")) return "위치 바로 찾기";
   if (article.title.includes("열람")) return "바로 열람하기";
-  if (article.title.includes("등록")) return "바로 등록하기";
+  if (article.title.includes("등록")) return "발급 바로가기";
   if (article.title.includes("검색")) return "바로 찾기";
-  return "바로 발급하기";
+  return "발급 바로가기";
 }
 
 function getSecondaryCtaLabel(article) {
