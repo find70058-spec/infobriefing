@@ -20,7 +20,7 @@ const articleUrl = (article) => `/guide/${article.slug}/`;
 const categoryUrl = (slug) => `/category/${slug}/`;
 const adsenseClient = "ca-pub-8637673382238209";
 const adsenseSlot = "8447020827";
-const assetVersion = "20260520-cta";
+const assetVersion = "20260521-creative";
 
 async function ensureDir(path) {
   await mkdir(path, { recursive: true });
@@ -164,6 +164,7 @@ function renderHome() {
         </div>
       </div>
       <div class="quick-panel" aria-label="빠른 확인">
+        <img class="hero-visual" src="/assets/briefing-visual.svg" alt="민원 서류 안내 화면">
         <h2>빠른 민원 체크</h2>
         <ul>
           <li><strong>온라인 가능</strong><span>등본, 가족관계, 소득증명 등</span></li>

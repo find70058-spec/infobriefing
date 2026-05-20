@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="560" viewBox="0 0 720 560" role="img" aria-labelledby="title desc">
+  <title id="title">정보브리핑 민원 안내 비주얼</title>
+  <desc id="desc">민원 서류 카드와 발급 상태를 표현한 그래픽</desc>
+  <defs>
+    <linearGradient id="g1" x1="64" y1="52" x2="650" y2="520" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#EAF7F0"/>
+      <stop offset="1" stop-color="#DDEBFF"/>
+    </linearGradient>
+    <linearGradient id="g2" x1="155" y1="142" x2="552" y2="470" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#F7FBF9"/>
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="22" stdDeviation="24" flood-color="#193D33" flood-opacity=".18"/>
+    </filter>
+  </defs>
+  <rect width="720" height="560" rx="42" fill="url(#g1)"/>
+  <rect x="572" y="54" width="76" height="58" rx="18" fill="#F8D96A"/>
+  <rect x="58" y="400" width="108" height="76" rx="22" fill="#77D0B5" opacity=".55"/>
+  <rect x="118" y="106" width="438" height="314" rx="28" fill="url(#g2)" filter="url(#shadow)"/>
+  <rect x="152" y="146" width="92" height="92" rx="22" fill="#0F7B64"/>
+  <path d="M173 176h50v10h-50zm0 21h50v10h-50zm0 21h34v10h-34z" fill="#fff"/>
+  <rect x="274" y="154" width="214" height="18" rx="9" fill="#17201B"/>
+  <rect x="274" y="188" width="166" height="14" rx="7" fill="#7A8C85"/>
+  <rect x="152" y="270" width="336" height="18" rx="9" fill="#DCE8E3"/>
+  <rect x="152" y="308" width="270" height="18" rx="9" fill="#DCE8E3"/>
+  <rect x="152" y="346" width="304" height="18" rx="9" fill="#DCE8E3"/>
+  <rect x="424" y="250" width="170" height="150" rx="26" fill="#17201B" filter="url(#shadow)"/>
+  <text x="454" y="301" font-family="Arial, sans-serif" font-size="22" font-weight="700" fill="#fff">READY</text>
+  <rect x="454" y="326" width="86" height="10" rx="5" fill="#77D0B5"/>
+  <rect x="454" y="350" width="112" height="10" rx="5" fill="#EAF7F0" opacity=".75"/>
+  <path d="M576 151c27 0 49 22 49 49s-22 49-49 49-49-22-49-49 22-49 49-49z" fill="#1F5EFF"/>
+  <path d="M553 199l16 16 31-37" fill="none" stroke="#fff" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
