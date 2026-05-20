@@ -3,7 +3,7 @@ export const site = {
   tagline: "정부 민원서류와 생활 행정 절차를 쉽게 정리합니다.",
   description:
     "여권발급, 인감증명서, 소득금액증명원, 주민등록등본 등 자주 찾는 정부 민원 정보를 준비물, 수수료, 신청방법 중심으로 안내합니다.",
-  siteUrl: "https://info.example.com",
+  siteUrl: "https://briefing.jiwon24.co.kr",
   defaultImage: "/assets/og-default.svg",
   adsensePublisherId: "pub-0000000000000000",
   nav: [
