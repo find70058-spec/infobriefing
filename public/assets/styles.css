@@ -332,6 +332,11 @@ h3 {
   padding: 42px 0 24px;
 }
 
+.article-layout-clean {
+  display: block;
+  max-width: 920px;
+}
+
 .breadcrumb {
   display: inline-block;
   margin-bottom: 16px;
@@ -405,6 +410,54 @@ h3 {
   border-left: 4px solid var(--brand);
   background: #f1faf6;
   padding: 14px 16px;
+}
+
+.article-description {
+  margin-top: 18px;
+}
+
+.article-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 24px 0 18px;
+}
+
+.ad-wrap {
+  min-height: 96px;
+  margin: 0 0 28px;
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  background: #fbfdfc;
+}
+
+.article-content h2 + .ad-wrap {
+  margin-top: 14px;
+  margin-bottom: 22px;
+}
+
+.inline-summary dl {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  margin: 18px 0;
+}
+
+.inline-summary div {
+  border-radius: 8px;
+  background: #f4faf7;
+  padding: 12px;
+}
+
+.inline-summary dt {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.inline-summary dd {
+  margin: 2px 0 0;
+  font-weight: 750;
 }
 
 .table-wrap {
@@ -553,6 +606,10 @@ summary {
 
   .article-content {
     padding: 24px 18px;
+  }
+
+  .inline-summary dl {
+    grid-template-columns: 1fr;
   }
 
   .quick-panel li,

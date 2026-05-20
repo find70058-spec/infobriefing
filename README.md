@@ -45,13 +45,13 @@ siteUrl: "https://briefing.jiwon24.co.kr"
 
 ## 애드센스
 
-`public/ads.txt`에는 아직 임시 publisher ID가 들어 있습니다. 애드센스 계정의 실제 publisher ID가 나오면 아래 값을 교체해야 합니다.
+`public/ads.txt`에는 현재 애드센스 publisher ID가 반영되어 있습니다.
 
 ```txt
-pub-0000000000000000
+pub-8637673382238209
 ```
 
-교체 후 다시 빌드/배포하세요.
+광고 슬롯이나 publisher ID가 바뀌면 `scripts/build.mjs`와 `public/ads.txt`를 함께 수정한 뒤 다시 빌드/배포하세요.
 
 ## 콘텐츠 추가
 

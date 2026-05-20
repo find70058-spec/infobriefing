@@ -18,6 +18,8 @@ const esc = (value = "") =>
 const absoluteUrl = (path) => new URL(path, site.siteUrl).toString();
 const articleUrl = (article) => `/guide/${article.slug}/`;
 const categoryUrl = (slug) => `/category/${slug}/`;
+const adsenseClient = "ca-pub-8637673382238209";
+const adsenseSlot = "8447020827";
 
 async function ensureDir(path) {
   await mkdir(path, { recursive: true });
@@ -46,7 +48,7 @@ async function copyPublic(from = publicDir, to = dist) {
   }
 }
 
-function layout({ title, description, path = "/", body, type = "website", jsonLd = "" }) {
+function layout({ title, description, path = "/", body, type = "website", jsonLd = "", includeAds = false }) {
   const pageTitle = title === site.name ? title : `${title} | ${site.name}`;
   const canonical = absoluteUrl(path);
   return `<!doctype html>
@@ -66,6 +68,7 @@ function layout({ title, description, path = "/", body, type = "website", jsonLd
   <meta property="og:url" content="${canonical}">
   <meta property="og:image" content="${absoluteUrl(site.defaultImage)}">
   <meta name="twitter:card" content="summary_large_image">
+  ${includeAds ? `<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${adsenseClient}" crossorigin="anonymous"></script>` : ""}
   <script type="application/ld+json">${JSON.stringify({
     "@context": "https://schema.org",
     "@type": "WebSite",
@@ -116,6 +119,18 @@ function layout({ title, description, path = "/", body, type = "website", jsonLd
   </footer>
 </body>
 </html>`;
+}
+
+function renderAd(label = "디스플레이 광고") {
+  return `<div class="ad-wrap" aria-label="${label}">
+    <ins class="adsbygoogle"
+      style="display:block"
+      data-ad-client="${adsenseClient}"
+      data-ad-slot="${adsenseSlot}"
+      data-ad-format="auto"
+      data-full-width-responsive="true"></ins>
+    <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+  </div>`;
 }
 
 function articleCard(article) {
@@ -214,6 +229,7 @@ function renderArticle(article) {
   const related = articles
     .filter((item) => item.category === article.category && item.slug !== article.slug)
     .slice(0, 3);
+  const actionLinks = getActionLinks(article);
   const jsonLd = `<script type="application/ld+json">${JSON.stringify({
     "@context": "https://schema.org",
     "@type": "Article",
@@ -238,32 +254,27 @@ function renderArticle(article) {
   const body = `<article class="article-shell">
     <header class="article-hero">
       <div class="container article-head">
+        ${renderAd("상단 디스플레이 광고")}
         <a class="breadcrumb" href="${categoryUrl(article.category)}">${esc(category.name)}</a>
         <h1>${esc(article.title)}</h1>
-        <p>${esc(article.description)}</p>
+        <p class="article-description">${esc(article.description)}</p>
+        <div class="article-actions">
+          ${actionLinks.map((link) => `<a class="button ${link.primary ? "primary" : "secondary"}" href="${link.url}" rel="nofollow noopener" target="_blank">${esc(link.label)}</a>`).join("")}
+        </div>
+        ${renderInlineSummary(article)}
         <div class="meta-row">
           <span>최종 업데이트 ${article.updatedAt}</span>
           <span>읽는 시간 ${article.readingMinutes}분</span>
         </div>
       </div>
     </header>
-    <div class="container article-layout">
-      <aside class="summary-box">
-        <h2>한눈에 보기</h2>
-        <dl>
-          <div><dt>신청 가능</dt><dd>${esc(article.summary.availability)}</dd></div>
-          <div><dt>발급처</dt><dd>${esc(article.summary.place)}</dd></div>
-          <div><dt>수수료</dt><dd>${esc(article.summary.fee)}</dd></div>
-          <div><dt>처리 시간</dt><dd>${esc(article.summary.time)}</dd></div>
-          <div><dt>준비물</dt><dd>${esc(article.summary.documents)}</dd></div>
-        </dl>
-      </aside>
+    <div class="container article-layout article-layout-clean">
       <div class="article-content">
         <p class="notice">정보브리핑은 공식 정부기관이 아닌 민원 정보 안내 사이트입니다. 실제 신청 조건과 수수료는 기관 고시에 따라 달라질 수 있으니 제출 전 공식 발급처를 확인하세요.</p>
-        ${article.sections.map(renderSection).join("")}
+        ${article.sections.map((section, index) => renderSection(section, { adAfterHeading: index === 0 })).join("")}
         <section>
           <h2>공식 확인 링크</h2>
-          <div class="official-links">${article.officialLinks.map((link) => `<a href="${link.url}" rel="nofollow noopener" target="_blank">${esc(link.label)}</a>`).join("")}</div>
+          <div class="official-links">${actionLinks.map((link) => `<a href="${link.url}" rel="nofollow noopener" target="_blank">${esc(link.label)}</a>`).join("")}</div>
         </section>
         <section>
           <h2>자주 묻는 질문</h2>
@@ -286,13 +297,49 @@ function renderArticle(article) {
     path: articleUrl(article),
     body,
     type: "article",
-    jsonLd
+    jsonLd,
+    includeAds: true
   });
 }
 
-function renderSection(section) {
+function renderInlineSummary(article) {
+  return `<div class="inline-summary" aria-label="한눈에 보기">
+    <dl>
+      <div><dt>신청 가능</dt><dd>${esc(article.summary.availability)}</dd></div>
+      <div><dt>발급처</dt><dd>${esc(article.summary.place)}</dd></div>
+      <div><dt>수수료</dt><dd>${esc(article.summary.fee)}</dd></div>
+      <div><dt>처리 시간</dt><dd>${esc(article.summary.time)}</dd></div>
+      <div><dt>준비물</dt><dd>${esc(article.summary.documents)}</dd></div>
+    </dl>
+  </div>`;
+}
+
+function getActionLinks(article) {
+  const seen = new Set();
+  const links = [];
+  for (const link of article.officialLinks || []) {
+    if (!link?.url || seen.has(link.url)) continue;
+    seen.add(link.url);
+    links.push({ ...link, primary: links.length === 0 });
+    if (links.length === 2) return links;
+  }
+  const fallbacks = [
+    { label: "정부24에서 확인하기", url: "https://www.gov.kr/" },
+    { label: "공식 발급처 검색하기", url: "https://www.gov.kr/search" }
+  ];
+  for (const link of fallbacks) {
+    if (seen.has(link.url)) continue;
+    seen.add(link.url);
+    links.push({ ...link, primary: links.length === 0 });
+    if (links.length === 2) break;
+  }
+  return links;
+}
+
+function renderSection(section, options = {}) {
   return `<section>
     <h2>${esc(section.heading)}</h2>
+    ${options.adAfterHeading ? renderAd("본문 디스플레이 광고") : ""}
     ${(section.body || []).map((p) => `<p>${esc(p)}</p>`).join("")}
     ${section.list ? `<ul>${section.list.map((item) => `<li>${esc(item)}</li>`).join("")}</ul>` : ""}
     ${section.steps ? `<ol>${section.steps.map((item) => `<li>${esc(item)}</li>`).join("")}</ol>` : ""}
