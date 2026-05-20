@@ -20,7 +20,7 @@ const articleUrl = (article) => `/guide/${article.slug}/`;
 const categoryUrl = (slug) => `/category/${slug}/`;
 const adsenseClient = "ca-pub-8637673382238209";
 const adsenseSlot = "8447020827";
-const assetVersion = "20260521-spacing";
+const assetVersion = "20260521-category";
 
 async function ensureDir(path) {
   await mkdir(path, { recursive: true });
