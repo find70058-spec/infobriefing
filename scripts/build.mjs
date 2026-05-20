@@ -20,7 +20,7 @@ const articleUrl = (article) => `/guide/${article.slug}/`;
 const categoryUrl = (slug) => `/category/${slug}/`;
 const adsenseClient = "ca-pub-8637673382238209";
 const adsenseSlot = "8447020827";
-const assetVersion = "20260521-cta-short";
+const assetVersion = "20260521-current-window";
 
 async function ensureDir(path) {
   await mkdir(path, { recursive: true });
@@ -262,7 +262,7 @@ function renderArticle(article) {
         <p class="article-description">${esc(article.description)}</p>
         <div class="article-actions">
           <a class="button primary" href="${actionLinks[0].url}" rel="nofollow noopener">${esc(getPrimaryCtaLabel(article))}</a>
-          <button class="button secondary" type="button" onclick="window.print()">${esc(getPdfCtaLabel(article))}</button>
+          <a class="button secondary" href="${actionLinks[1].url}" rel="nofollow noopener">${esc(getSecondaryCtaLabel(article))}</a>
         </div>
         ${renderInlineSummary(article)}
         <div class="meta-row">
@@ -277,7 +277,7 @@ function renderArticle(article) {
         ${article.sections.map((section, index) => renderSection(section, { adAfterHeading: index === 0 })).join("")}
         <section>
           <h2>공식 확인 링크</h2>
-          <div class="official-links">${actionLinks.map((link) => `<a href="${link.url}" rel="nofollow noopener" target="_blank">${esc(link.label)}</a>`).join("")}</div>
+          <div class="official-links">${actionLinks.map((link) => `<a href="${link.url}" rel="nofollow noopener">${esc(link.label)}</a>`).join("")}</div>
         </section>
         <section>
           <h2>자주 묻는 질문</h2>
@@ -329,6 +329,15 @@ function getArticleSubject(article) {
 }
 
 function getPrimaryCtaLabel(article) {
+  if (article.slug === "passport-reissue") return "여권 재발급 바로가기";
+  if (article.slug === "passport-new-issue") return "여권 발급 바로가기";
+  if (article.slug === "immigration-fact-certificate") return "출입국증명 바로가기";
+  if (article.title.includes("인감")) return "인감증명 바로가기";
+  if (article.title.includes("주민등록등본")) return "등본 발급 바로가기";
+  if (article.title.includes("주민등록초본")) return "초본 발급 바로가기";
+  if (article.title.includes("가족관계")) return "가족관계증명 바로가기";
+  if (article.title.includes("소득")) return "소득증명 바로가기";
+  if (article.title.includes("건강보험")) return "건강보험 확인 바로가기";
   if (article.title.includes("위치")) return "위치 바로 찾기";
   if (article.title.includes("열람")) return "바로 열람하기";
   if (article.title.includes("등록")) return "바로 등록하기";
@@ -336,8 +345,17 @@ function getPrimaryCtaLabel(article) {
   return "바로 발급하기";
 }
 
-function getPdfCtaLabel(article) {
-  return "PDF 저장하기";
+function getSecondaryCtaLabel(article) {
+  if (article.slug === "passport-reissue") return "방문 수령 기준 확인";
+  if (article.slug === "passport-new-issue") return "여권 준비물 확인";
+  if (article.slug === "immigration-fact-certificate") return "해외이력 확인하기";
+  if (article.title.includes("대리")) return "위임장 기준 확인";
+  if (article.title.includes("무인민원발급기")) return "무인발급기 위치 찾기";
+  if (article.title.includes("열람")) return "열람 기준 확인";
+  if (article.title.includes("등록")) return "등록 준비물 확인";
+  if (article.title.includes("건강보험")) return "제출 기준 확인";
+  if (article.title.includes("소득") || article.title.includes("세금") || article.title.includes("납세")) return "제출용 기준 확인";
+  return "신청 기준 확인";
 }
 
 function getActionLinks(article) {
