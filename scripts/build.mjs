@@ -20,6 +20,7 @@ const articleUrl = (article) => `/guide/${article.slug}/`;
 const categoryUrl = (slug) => `/category/${slug}/`;
 const adsenseClient = "ca-pub-8637673382238209";
 const adsenseSlot = "8447020827";
+const assetVersion = "20260520-cta";
 
 async function ensureDir(path) {
   await mkdir(path, { recursive: true });
@@ -61,7 +62,7 @@ function layout({ title, description, path = "/", body, type = "website", jsonLd
   <meta name="robots" content="index, follow, max-image-preview:large">
   <link rel="canonical" href="${canonical}">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/assets/styles.css">
+  <link rel="stylesheet" href="/assets/styles.css?v=${assetVersion}">
   <meta property="og:type" content="${type}">
   <meta property="og:title" content="${esc(pageTitle)}">
   <meta property="og:description" content="${esc(description)}">
@@ -259,7 +260,8 @@ function renderArticle(article) {
         <h1>${esc(article.title)}</h1>
         <p class="article-description">${esc(article.description)}</p>
         <div class="article-actions">
-          ${actionLinks.map((link) => `<a class="button ${link.primary ? "primary" : "secondary"}" href="${link.url}" rel="nofollow noopener" target="_blank">${esc(link.label)}</a>`).join("")}
+          <a class="button primary" href="${actionLinks[0].url}" rel="nofollow noopener" target="_blank">${esc(getPrimaryCtaLabel(article))}</a>
+          <button class="button secondary" type="button" onclick="window.print()">${esc(getPdfCtaLabel(article))}</button>
         </div>
         ${renderInlineSummary(article)}
         <div class="meta-row">
@@ -312,6 +314,29 @@ function renderInlineSummary(article) {
       <div><dt>준비물</dt><dd>${esc(article.summary.documents)}</dd></div>
     </dl>
   </div>`;
+}
+
+function getArticleSubject(article) {
+  return article.title
+    .replace(/ 방법.*$/, "")
+    .replace(/:.*$/, "")
+    .replace(/ 온라인.*$/, "")
+    .replace(/ 인터넷.*$/, "")
+    .replace(/ 발급.*$/, "")
+    .replace(/ 열람.*$/, "")
+    .trim();
+}
+
+function getPrimaryCtaLabel(article) {
+  const subject = getArticleSubject(article);
+  if (article.title.includes("열람")) return `${subject} 열람하기`;
+  if (article.title.includes("등록")) return `${subject} 등록하기`;
+  if (article.title.includes("검색")) return `${subject} 찾기`;
+  return `${subject} 발급하기`;
+}
+
+function getPdfCtaLabel(article) {
+  return `${getArticleSubject(article)} PDF 저장`;
 }
 
 function getActionLinks(article) {
