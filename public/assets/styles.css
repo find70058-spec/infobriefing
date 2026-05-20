@@ -267,6 +267,8 @@ body {
   background: var(--brand);
   color: #fff;
   box-shadow: 0 14px 28px rgba(13, 128, 104, 0.22);
+  font-size: 18px;
+  font-weight: 850;
 }
 
 .article-actions .button.secondary {
@@ -980,6 +982,18 @@ summary {
 .article-actions .button.secondary {
   background: var(--brand);
   color: #fff;
+}
+
+.article-head h1 {
+  max-width: 820px;
+  font-size: 26px;
+  line-height: 1.28;
+}
+
+@media (max-width: 860px) {
+  .article-head h1 {
+    font-size: 22px;
+  }
 }
 
 .hero-visual {

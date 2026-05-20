@@ -20,7 +20,7 @@ const articleUrl = (article) => `/guide/${article.slug}/`;
 const categoryUrl = (slug) => `/category/${slug}/`;
 const adsenseClient = "ca-pub-8637673382238209";
 const adsenseSlot = "8447020827";
-const assetVersion = "20260521-category";
+const assetVersion = "20260521-cta-short";
 
 async function ensureDir(path) {
   await mkdir(path, { recursive: true });
@@ -261,7 +261,7 @@ function renderArticle(article) {
         <h1>${esc(article.title)}</h1>
         <p class="article-description">${esc(article.description)}</p>
         <div class="article-actions">
-          <a class="button primary" href="${actionLinks[0].url}" rel="nofollow noopener" target="_blank">${esc(getPrimaryCtaLabel(article))}</a>
+          <a class="button primary" href="${actionLinks[0].url}" rel="nofollow noopener">${esc(getPrimaryCtaLabel(article))}</a>
           <button class="button secondary" type="button" onclick="window.print()">${esc(getPdfCtaLabel(article))}</button>
         </div>
         ${renderInlineSummary(article)}
@@ -329,15 +329,15 @@ function getArticleSubject(article) {
 }
 
 function getPrimaryCtaLabel(article) {
-  const subject = getArticleSubject(article);
-  if (article.title.includes("열람")) return `${subject} 열람하기`;
-  if (article.title.includes("등록")) return `${subject} 등록하기`;
-  if (article.title.includes("검색")) return `${subject} 찾기`;
-  return `${subject} 발급하기`;
+  if (article.title.includes("위치")) return "위치 바로 찾기";
+  if (article.title.includes("열람")) return "바로 열람하기";
+  if (article.title.includes("등록")) return "바로 등록하기";
+  if (article.title.includes("검색")) return "바로 찾기";
+  return "바로 발급하기";
 }
 
 function getPdfCtaLabel(article) {
-  return `${getArticleSubject(article)} PDF 저장`;
+  return "PDF 저장하기";
 }
 
 function getActionLinks(article) {
