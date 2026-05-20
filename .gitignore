@@ -4,7 +4,6 @@ node_modules/
 .wrangler/
 .tools/
 node-*-win-x64.zip
-node_modules/
 package-lock.json
 wrangler-login.*.txt
 .DS_Store

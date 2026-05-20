@@ -2,7 +2,14 @@
 
 정부 민원 안내 콘텐츠를 검색 유입과 애드센스 승인에 맞게 구성한 정적 사이트입니다.
 
-현재 포함된 주요 구성:
+## 운영 주소
+
+- Production: https://briefing.jiwon24.co.kr
+- Cloudflare Pages: https://infobriefing.pages.dev
+- Sitemap: https://briefing.jiwon24.co.kr/sitemap.xml
+- Robots: https://briefing.jiwon24.co.kr/robots.txt
+
+## 현재 구성
 
 - 민원 안내 상세 글 32개
 - 카테고리 5개
@@ -11,28 +18,41 @@
 - `sitemap.xml`, `robots.txt`, `ads.txt`
 - Article, FAQ, WebSite 구조화 데이터
 
-## 배포 설정
+## Cloudflare Pages 설정
 
+- Project name: `infobriefing`
 - Build command: `node scripts/build.mjs`
 - Build output directory: `dist`
 - Framework preset: `None`
+- Production branch: `main`
 
-Wrangler CLI로 배포할 경우:
+## 배포
+
+현재 Cloudflare 대시보드의 GitHub 연결 UI가 불안정해 Wrangler로 직접 배포했습니다.
 
 ```bash
-npx wrangler pages deploy dist
+node scripts/build.mjs
+wrangler pages deploy dist --project-name infobriefing --branch main
 ```
 
-## 도메인 연결 전 수정할 곳
+## 도메인
 
-`src/site.config.mjs`에서 아래 값을 실제 하위도메인으로 바꾸세요.
+`src/site.config.mjs`의 `siteUrl`은 현재 운영 도메인으로 설정되어 있습니다.
 
 ```js
-siteUrl: "https://info.example.com"
+siteUrl: "https://briefing.jiwon24.co.kr"
 ```
 
-애드센스 승인 계정의 publisher id가 나오면 `src/site.config.mjs`의 `adsensePublisherId`와 `public/ads.txt`를 같이 수정하세요.
+## 애드센스
+
+`public/ads.txt`에는 아직 임시 publisher ID가 들어 있습니다. 애드센스 계정의 실제 publisher ID가 나오면 아래 값을 교체해야 합니다.
+
+```txt
+pub-0000000000000000
+```
+
+교체 후 다시 빌드/배포하세요.
 
 ## 콘텐츠 추가
 
-`src/content/articles.mjs`에 article 객체를 추가하면 상세 페이지, 카테고리 페이지, 홈, 사이트맵에 자동 반영됩니다.
+`src/content/articles.more.mjs`에 article 객체를 추가하면 상세 페이지, 카테고리 페이지, 홈, 검색 데이터, 사이트맵에 자동 반영됩니다.
