@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" fill="#f6f8f7"/>
+  <rect x="80" y="90" width="1040" height="450" rx="28" fill="#ffffff"/>
+  <rect x="130" y="150" width="84" height="84" rx="18" fill="#0f7b64"/>
+  <path d="M150 174h44v11h-44zM150 193h44v11h-44zM150 212h30v11h-30z" fill="#fff"/>
+  <text x="130" y="320" font-family="Arial, sans-serif" font-size="74" font-weight="800" fill="#17201b">정보브리핑</text>
+  <text x="130" y="390" font-family="Arial, sans-serif" font-size="34" fill="#61706a">정부 민원서류와 생활 행정 절차를 쉽게 정리합니다.</text>
+</svg>
