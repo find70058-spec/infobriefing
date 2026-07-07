@@ -31,6 +31,44 @@ function stripDraftSuffix(slug) {
   return String(slug || "").replace(/-(quick-)?guide$/, "");
 }
 
+function domain(kind) {
+  return kind === "plus" ? "https://plus.liferoom-j.com" : "https://info.liferoom-j.com";
+}
+
+function articleUrl(kind, article) {
+  return `${domain(kind)}/posts/${article.slug}/`;
+}
+
+function setLog(data) {
+  $("#jobLog").textContent = typeof data === "string" ? data : JSON.stringify(data, null, 2);
+}
+
+function appendLog(data) {
+  const current = $("#jobLog").textContent;
+  $("#jobLog").textContent = current && current !== "대기 중입니다." ? `${current}\n\n${data}` : data;
+}
+
+async function runJob(path, label, { append = false } = {}) {
+  const startMessage = `${label} 실행 중...`;
+  if (append) appendLog(startMessage);
+  else setLog(startMessage);
+
+  const data = await api(path, { method: "POST", body: "{}" });
+  const output = [
+    `[${label}]`,
+    `[PLUS] exit ${data.plus.code}`,
+    data.plus.output,
+    "",
+    `[INFO] exit ${data.info.code}`,
+    data.info.output
+  ].join("\n");
+
+  if (append) appendLog(output);
+  else setLog(output);
+  toast(`${label} 완료`);
+  return data;
+}
+
 function debounceSlugSuggestion(form) {
   window.clearTimeout(slugTimer);
   slugTimer = window.setTimeout(async () => {
@@ -46,14 +84,6 @@ function debounceSlugSuggestion(form) {
       toast(error.message);
     }
   }, 450);
-}
-
-function domain(kind) {
-  return kind === "plus" ? "https://plus.liferoom-j.com" : "https://info.liferoom-j.com";
-}
-
-function articleUrl(kind, article) {
-  return `${domain(kind)}/posts/${article.slug}/`;
 }
 
 function renderDraftArticle(kind, article) {
@@ -93,29 +123,11 @@ function renderPosts(kind, items) {
     .join("");
 }
 
-async function loadPosts() {
+async function loadPosts({ quiet = false } = {}) {
   posts = await api("/api/articles");
   renderPosts("plus", posts.plus);
   renderPosts("info", posts.info);
-  toast("글 목록을 불러왔습니다.");
-}
-
-function setLog(data) {
-  $("#jobLog").textContent = typeof data === "string" ? data : JSON.stringify(data, null, 2);
-}
-
-async function runJob(path, label) {
-  setLog(`${label} 실행 중...`);
-  const data = await api(path, { method: "POST", body: "{}" });
-  setLog([
-    `[PLUS] exit ${data.plus.code}`,
-    data.plus.output,
-    "",
-    `[INFO] exit ${data.info.code}`,
-    data.info.output
-  ].join("\n"));
-  toast(`${label} 완료`);
-  return data;
+  if (!quiet) toast("글 목록을 불러왔습니다.");
 }
 
 function bindNavigation() {
@@ -132,7 +144,10 @@ function bindNavigation() {
 function bindForm() {
   $("#draftForm").addEventListener("submit", async (event) => {
     event.preventDefault();
+    const submitButton = event.submitter;
+    if (submitButton) submitButton.disabled = true;
     $("#publishDraft").disabled = true;
+
     try {
       currentDraft = await api("/api/draft", {
         method: "POST",
@@ -140,35 +155,44 @@ function bindForm() {
       });
       event.currentTarget.slug.value = stripDraftSuffix(currentDraft.plus.slug);
       renderDraft(currentDraft);
-      toast("A/B 글 초안을 생성했습니다.");
+      toast("A/B 글 초안을 생성했습니다. 빌드를 시작합니다.");
+      await runJob("/api/build", "초안 생성 후 빌드");
     } catch (error) {
       toast(error.message);
+    } finally {
+      if (submitButton) submitButton.disabled = false;
     }
   });
 
   $("#publishDraft").addEventListener("click", async () => {
     if (!currentDraft) return;
-    if (!confirm("현재 초안을 plus와 info 저장소에 추가할까요?")) return;
+    const publishButton = $("#publishDraft");
+    publishButton.disabled = true;
+
     try {
       const result = await api("/api/publish", {
         method: "POST",
         body: JSON.stringify(currentDraft)
       });
-      toast("글 데이터가 추가됐습니다. 이제 빌드/배포를 실행하세요.");
-      await loadPosts();
+      await loadPosts({ quiet: true });
       setLog(`글 추가 완료\nA: ${result.plusUrl}\nB: ${result.infoUrl}`);
+      toast("글을 추가했습니다. 빌드 후 바로 배포합니다.");
+      await runJob("/api/build", "글 추가 후 빌드", { append: true });
+      await runJob("/api/deploy", "글 추가 후 배포", { append: true });
+      toast("글 추가, 빌드, 배포를 모두 완료했습니다.");
     } catch (error) {
       toast(error.message);
+      publishButton.disabled = false;
     }
   });
 }
 
 function bindJobs() {
   $("#refreshPosts").addEventListener("click", () => loadPosts().catch((error) => toast(error.message)));
-  $("#buildBoth").addEventListener("click", () => runJob("/api/build", "빌드").catch((error) => toast(error.message)));
+  $("#buildBoth").addEventListener("click", () => runJob("/api/build", "수동 빌드").catch((error) => toast(error.message)));
   $("#deployBoth").addEventListener("click", () => {
     if (!confirm("Cloudflare Pages에 Plus와 Info를 모두 배포할까요?")) return;
-    runJob("/api/deploy", "배포").catch((error) => toast(error.message));
+    runJob("/api/deploy", "수동 배포").catch((error) => toast(error.message));
   });
 }
 
@@ -184,4 +208,4 @@ bindNavigation();
 bindForm();
 bindJobs();
 bindSlugSuggestion();
-loadPosts().catch((error) => toast(error.message));
+loadPosts({ quiet: true }).catch((error) => toast(error.message));
