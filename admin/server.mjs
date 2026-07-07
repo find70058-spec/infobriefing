@@ -648,6 +648,159 @@ ${sourceNote}
   return parsed;
 }
 
+function naverDraftSchema() {
+  return {
+    type: "object",
+    additionalProperties: false,
+    required: ["titles", "body", "hashtags"],
+    properties: {
+      titles: {
+        type: "array",
+        minItems: 3,
+        maxItems: 3,
+        items: { type: "string" }
+      },
+      body: { type: "string" },
+      hashtags: {
+        type: "array",
+        minItems: 5,
+        maxItems: 8,
+        items: { type: "string" }
+      }
+    }
+  };
+}
+
+function articleFullUrl(kind, article) {
+  return `${roots[kind].domain}/posts/${article.slug}/`;
+}
+
+function findMatchingPlusArticle(infoSlug, plusArticles) {
+  const baseSlug = stripKnownSuffix(infoSlug);
+  return (
+    plusArticles.find((article) => article.slug === `${baseSlug}-quick-guide`) ||
+    plusArticles.find((article) => stripKnownSuffix(article.slug) === baseSlug) ||
+    null
+  );
+}
+
+function normalizeNaverBody(text, plusUrl, linkText) {
+  let clean = String(text || "").replace(/\n{3,}/g, "\n\n").trim();
+  clean = clean.replaceAll(plusUrl, "").replace(/\n{3,}/g, "\n\n").trim();
+  const linkBlock = `${linkText}\n${plusUrl}`;
+  const maxBodyLength = 2000 - linkBlock.length - 4;
+  if (clean.length > maxBodyLength) {
+    clean = clean.slice(0, Math.max(1200, maxBodyLength)).replace(/\s+\S*$/, "").trim();
+  }
+  return `${clean}\n\n${linkBlock}`.trim();
+}
+
+async function makeNaverDraft(input) {
+  if (!hasOpenAiKey()) {
+    throw new Error("네이버 발행문 생성에는 OPENAI_API_KEY가 필요합니다. .env에 키를 넣은 뒤 서버를 다시 실행해 주세요.");
+  }
+
+  const infoSlug = String(input.infoSlug || "").trim();
+  if (!infoSlug) throw new Error("B 블로그 글을 선택해 주세요.");
+
+  const [plusArticles, infoArticles] = await Promise.all([importArticles("plus"), importArticles("info")]);
+  const infoArticle = infoArticles.find((article) => article.slug === infoSlug);
+  if (!infoArticle) throw new Error(`B 블로그 글을 찾을 수 없습니다: ${infoSlug}`);
+
+  const matchedPlus = findMatchingPlusArticle(infoSlug, plusArticles);
+  const plusUrl = String(input.plusUrl || "").trim() || (matchedPlus ? articleFullUrl("plus", matchedPlus) : "");
+  if (!plusUrl) throw new Error("연결할 A 블로그 글을 찾지 못했습니다. A 블로그 링크를 직접 입력해 주세요.");
+
+  const channel = String(input.channel || "blog") === "cafe" ? "네이버 카페" : "네이버 블로그";
+  const toneMap = {
+    info: "정돈된 정보형",
+    review: "직접 찾아본 후기형",
+    question: "질문을 던지고 답하는 Q&A형",
+    checklist: "체크리스트형"
+  };
+  const tone = toneMap[String(input.tone || "info")] || toneMap.info;
+  const targetLength = Math.min(2000, Math.max(1500, Number(input.targetLength || 1800)));
+  const linkText = String(input.linkText || "자세히 정리한 글 보기").trim();
+  const infoBody = stripHtml(infoArticle.html).slice(0, 10000);
+  const model = process.env.OPENAI_MODEL || "gpt-5.5";
+
+  const prompt = `
+아래 B 블로그 글 내용을 바탕으로 ${channel}에 올릴 발행문을 작성합니다.
+
+채널: ${channel}
+톤: ${tone}
+목표 분량: 공백 포함 ${targetLength}자 내외, 반드시 1500~2000자 사이
+A 블로그 링크: ${plusUrl}
+A 링크 문구: ${linkText}
+
+B 블로그 제목:
+${infoArticle.title}
+
+B 블로그 설명:
+${infoArticle.description}
+
+B 블로그 본문 참고자료:
+${infoBody}
+
+작성 규칙:
+- 한국어로 자연스럽게 씁니다.
+- 본문은 1500~2000자 사이로 작성합니다.
+- B 블로그 내용을 그대로 복사하지 말고, 네이버 검색 유입용 소개글처럼 재구성합니다.
+- 핵심 정보는 충분히 설명하되, 최종 확인은 A 블로그 링크로 유도합니다.
+- A 블로그 링크는 본문 하단에 1회만 넣습니다.
+- 공식 사이트 링크나 B 블로그 링크는 넣지 않습니다.
+- 과장 광고, 허위 경험담, 선정적 표현은 피합니다.
+- 제목 후보 3개, 본문 1개, 해시태그 5~8개를 반환합니다.
+- 해시태그는 #을 포함해서 작성합니다.
+`;
+
+  const response = await fetch("https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: {
+      "authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+      "content-type": "application/json"
+    },
+    body: JSON.stringify({
+      model,
+      input: prompt,
+      text: {
+        format: {
+          type: "json_schema",
+          name: "liferoom_naver_draft",
+          strict: true,
+          schema: naverDraftSchema()
+        }
+      }
+    })
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const message = data?.error?.message || "네이버 발행문 생성에 실패했습니다.";
+    throw new Error(message);
+  }
+
+  const parsed = JSON.parse(outputTextFromResponse(data));
+  const titles = Array.isArray(parsed.titles) ? parsed.titles.filter(Boolean).slice(0, 3) : [];
+  if (titles.length < 3 || !parsed.body) {
+    throw new Error("네이버 발행문 응답 형식이 올바르지 않습니다.");
+  }
+
+  return {
+    infoSlug: infoArticle.slug,
+    infoTitle: infoArticle.title,
+    plusSlug: matchedPlus?.slug || "",
+    plusUrl,
+    channel,
+    tone,
+    targetLength,
+    titles,
+    body: normalizeNaverBody(parsed.body, plusUrl, linkText),
+    hashtags: Array.isArray(parsed.hashtags) ? parsed.hashtags.filter(Boolean).slice(0, 8) : [],
+    createdAt: new Date().toISOString()
+  };
+}
+
 async function makeDraft(input) {
   const keyword = String(input.keyword || "").trim();
   if (!keyword) throw new Error("키워드를 입력하세요.");
@@ -830,6 +983,10 @@ async function handleApi(req, res, pathname) {
 
     if (req.method === "POST" && pathname === "/api/draft") {
       return sendJson(res, 200, await makeDraft(await readBody(req)));
+    }
+
+    if (req.method === "POST" && pathname === "/api/naver-draft") {
+      return sendJson(res, 200, await makeNaverDraft(await readBody(req)));
     }
 
     if (req.method === "POST" && pathname === "/api/suggest-slug") {

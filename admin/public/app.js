@@ -1,4 +1,5 @@
 let currentDraft = null;
+let currentNaverDraft = null;
 let posts = { plus: [], info: [] };
 let slugEditedManually = false;
 let slugTimer = null;
@@ -43,6 +44,23 @@ function domain(kind) {
 
 function articleUrl(kind, article) {
   return `${domain(kind)}/posts/${article.slug}/`;
+}
+
+function escapeText(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+}
+
+function findMatchingPlusArticle(infoSlug) {
+  const baseSlug = stripDraftSuffix(infoSlug);
+  return (
+    posts.plus.find((article) => article.slug === `${baseSlug}-quick-guide`) ||
+    posts.plus.find((article) => stripDraftSuffix(article.slug) === baseSlug) ||
+    null
+  );
 }
 
 function setLog(data) {
@@ -133,10 +151,123 @@ function renderPosts(kind, items) {
     .join("");
 }
 
+function renderNaverArticleOptions() {
+  const select = $("#naverInfoSlug");
+  if (!select) return;
+  const current = select.value;
+  select.innerHTML = [
+    `<option value="">B 블로그 글을 선택하세요.</option>`,
+    ...posts.info
+      .slice()
+      .reverse()
+      .map((article) => `<option value="${escapeText(article.slug)}">${escapeText(article.title)} (${escapeText(article.slug)})</option>`)
+  ].join("");
+  if (current && posts.info.some((article) => article.slug === current)) select.value = current;
+  updateNaverMatchedPlus();
+}
+
+function updateNaverMatchedPlus() {
+  const select = $("#naverInfoSlug");
+  const input = $("#naverPlusUrl");
+  if (!select || !input) return;
+  const matched = findMatchingPlusArticle(select.value);
+  input.value = matched ? articleUrl("plus", matched) : "";
+  input.placeholder = matched ? "" : "매칭되는 A 글이 없으면 직접 입력하세요.";
+}
+
+function naverHistory() {
+  try {
+    return JSON.parse(localStorage.getItem("liferoomNaverHistory") || "[]");
+  } catch {
+    return [];
+  }
+}
+
+function saveNaverHistory(item) {
+  const history = [item, ...naverHistory()].slice(0, 30);
+  localStorage.setItem("liferoomNaverHistory", JSON.stringify(history));
+  renderNaverHistory();
+}
+
+function renderNaverHistory() {
+  const target = $("#naverHistory");
+  if (!target) return;
+  const history = naverHistory();
+  if (!history.length) {
+    target.innerHTML = `<div class="empty-mini">생성 기록이 없습니다.</div>`;
+    return;
+  }
+  target.innerHTML = history
+    .map((item, index) => `<article class="history-item">
+      <div>
+        <strong>${escapeText(item.title || item.titles?.[0] || "제목 없음")}</strong>
+        <p>${escapeText(item.channel || "")} · ${escapeText(item.infoTitle || item.infoSlug || "")}</p>
+      </div>
+      <div class="history-actions">
+        <button type="button" class="ghost-button mini-button" data-history-copy="${index}">복사</button>
+      </div>
+    </article>`)
+    .join("");
+}
+
+function naverCopyText(draft, title = draft.titles?.[0] || "") {
+  return `${title}\n\n${draft.body}\n\n${(draft.hashtags || []).join(" ")}`.trim();
+}
+
+async function copyText(text, message = "복사했습니다.") {
+  await navigator.clipboard.writeText(text);
+  toast(message);
+}
+
+function renderNaverResult(draft) {
+  currentNaverDraft = draft;
+  const titleButtons = draft.titles
+    .map((title, index) => `<button type="button" class="title-option" data-copy-title="${index}">${escapeText(title)}</button>`)
+    .join("");
+  $("#naverResult").className = "naver-result";
+  $("#naverResult").innerHTML = `
+    <div class="result-box">
+      <div class="result-meta">
+        <span>${escapeText(draft.channel)}</span>
+        <span>${draft.body.length}자</span>
+      </div>
+      <h3>제목 후보</h3>
+      <div class="title-options">${titleButtons}</div>
+    </div>
+    <div class="result-box">
+      <div class="copy-row">
+        <h3>본문</h3>
+        <button type="button" class="ghost-button mini-button" id="copyNaverBody">본문 복사</button>
+      </div>
+      <textarea class="generated-body" readonly>${escapeText(draft.body)}</textarea>
+    </div>
+    <div class="result-box">
+      <div class="copy-row">
+        <h3>해시태그</h3>
+        <button type="button" class="ghost-button mini-button" id="copyNaverAll">전체 복사</button>
+      </div>
+      <p class="hashtag-line">${escapeText((draft.hashtags || []).join(" "))}</p>
+      <p class="field-help">A 링크: <a href="${escapeText(draft.plusUrl)}" target="_blank" rel="noopener">${escapeText(draft.plusUrl)}</a></p>
+    </div>
+  `;
+  saveNaverHistory({
+    title: draft.titles[0],
+    titles: draft.titles,
+    body: draft.body,
+    hashtags: draft.hashtags,
+    channel: draft.channel,
+    infoSlug: draft.infoSlug,
+    infoTitle: draft.infoTitle,
+    plusUrl: draft.plusUrl,
+    createdAt: draft.createdAt
+  });
+}
+
 async function loadPosts({ quiet = false } = {}) {
   posts = await api("/api/articles");
   renderPosts("plus", posts.plus);
   renderPosts("info", posts.info);
+  renderNaverArticleOptions();
   if (!quiet) toast("글 목록을 불러왔습니다.");
 }
 
@@ -227,6 +358,71 @@ function bindForm() {
   });
 }
 
+function bindNaver() {
+  const form = $("#naverForm");
+  if (!form) return;
+
+  $("#naverInfoSlug").addEventListener("change", updateNaverMatchedPlus);
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const submitButton = event.submitter;
+    if (submitButton) submitButton.disabled = true;
+
+    try {
+      $("#naverResult").className = "empty-state";
+      $("#naverResult").textContent = "네이버 발행문을 생성하는 중입니다.";
+      const draft = await api("/api/naver-draft", {
+        method: "POST",
+        body: JSON.stringify(formData(form))
+      });
+      renderNaverResult(draft);
+      toast("네이버 발행문을 생성했습니다.");
+    } catch (error) {
+      toast(error.message);
+      $("#naverResult").className = "empty-state";
+      $("#naverResult").textContent = error.message;
+    } finally {
+      if (submitButton) submitButton.disabled = false;
+    }
+  });
+
+  $("#naverResult").addEventListener("click", async (event) => {
+    const titleButton = event.target.closest("[data-copy-title]");
+    if (titleButton && currentNaverDraft) {
+      const title = currentNaverDraft.titles[Number(titleButton.dataset.copyTitle)];
+      await copyText(title, "제목을 복사했습니다.");
+      return;
+    }
+
+    if (event.target.closest("#copyNaverBody") && currentNaverDraft) {
+      await copyText(currentNaverDraft.body, "본문을 복사했습니다.");
+      return;
+    }
+
+    if (event.target.closest("#copyNaverAll") && currentNaverDraft) {
+      await copyText(naverCopyText(currentNaverDraft), "제목/본문/해시태그를 복사했습니다.");
+    }
+  });
+
+  $("#naverHistory").addEventListener("click", async (event) => {
+    const button = event.target.closest("[data-history-copy]");
+    if (!button) return;
+    const item = naverHistory()[Number(button.dataset.historyCopy)];
+    if (!item) return;
+    await copyText(naverCopyText(item, item.title || item.titles?.[0] || ""), "기록의 발행문을 복사했습니다.");
+  });
+
+  $("#clearNaverHistory").addEventListener("click", () => {
+    if (!confirm("네이버 발행문 생성 기록을 비울까요?")) return;
+    localStorage.removeItem("liferoomNaverHistory");
+    renderNaverHistory();
+    toast("기록을 비웠습니다.");
+  });
+
+  renderNaverHistory();
+}
+
 function bindJobs() {
   $("#refreshPosts").addEventListener("click", () => loadPosts().catch((error) => toast(error.message)));
   $("#buildBoth").addEventListener("click", () => runJob("/api/build", "수동 빌드").catch((error) => toast(error.message)));
@@ -246,6 +442,7 @@ function bindSlugSuggestion() {
 
 bindNavigation();
 bindForm();
+bindNaver();
 bindJobs();
 bindSlugSuggestion();
 loadAiStatus();

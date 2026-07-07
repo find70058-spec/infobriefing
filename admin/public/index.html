@@ -19,6 +19,7 @@
       <nav class="nav">
         <button class="nav-item active" data-panel="compose">글 작성</button>
         <button class="nav-item" data-panel="posts">글 목록</button>
+        <button class="nav-item" data-panel="naver">네이버 발행문</button>
         <button class="nav-item" data-panel="deploy">빌드/배포</button>
       </nav>
       <div class="status-card">
@@ -165,6 +166,95 @@
         </div>
       </section>
 
+      <section id="naver" class="panel">
+        <div class="grid two">
+          <form id="naverForm" class="card form-card">
+            <div class="section-title">
+              <span>N</span>
+              <div>
+                <h2>네이버 발행문 생성</h2>
+                <p>B 블로그 글을 바탕으로 네이버 블로그/카페용 1500~2000자 글을 만듭니다.</p>
+              </div>
+            </div>
+
+            <label>
+              B 블로그 글 선택
+              <select name="infoSlug" id="naverInfoSlug" required>
+                <option value="">글 목록을 불러오는 중입니다.</option>
+              </select>
+            </label>
+
+            <label>
+              연결할 A 블로그 링크
+              <input name="plusUrl" id="naverPlusUrl" placeholder="A 블로그 글이 자동 매칭됩니다.">
+              <small class="field-help">B 글 slug에서 -guide를 빼고 A 글의 -quick-guide와 자동으로 맞춥니다. 필요하면 직접 수정할 수 있습니다.</small>
+            </label>
+
+            <div class="row">
+              <label>
+                발행 채널
+                <select name="channel">
+                  <option value="blog">네이버 블로그</option>
+                  <option value="cafe">네이버 카페</option>
+                </select>
+              </label>
+              <label>
+                글 톤
+                <select name="tone">
+                  <option value="info">정보형</option>
+                  <option value="review">후기형</option>
+                  <option value="question">질문형</option>
+                  <option value="checklist">체크리스트형</option>
+                </select>
+              </label>
+            </div>
+
+            <div class="row">
+              <label>
+                목표 글자수
+                <select name="targetLength">
+                  <option value="1800">1800자 내외</option>
+                  <option value="1500">1500자 내외</option>
+                  <option value="2000">2000자 내외</option>
+                </select>
+              </label>
+              <label>
+                A 링크 문구
+                <input name="linkText" value="자세히 정리한 글 보기">
+              </label>
+            </div>
+
+            <div class="actions">
+              <button type="submit" class="primary-button">발행문 생성</button>
+              <button type="button" id="clearNaverHistory" class="ghost-button">기록 비우기</button>
+            </div>
+          </form>
+
+          <div class="card preview-card">
+            <div class="section-title">
+              <span>copy</span>
+              <div>
+                <h2>복사용 결과</h2>
+                <p>제목과 본문을 복사해서 네이버 작성 화면에 붙여넣으면 됩니다.</p>
+              </div>
+            </div>
+            <div id="naverResult" class="empty-state">
+              아직 생성된 네이버 발행문이 없습니다.
+            </div>
+          </div>
+        </div>
+
+        <div class="card log-card">
+          <div class="section-title compact">
+            <span>history</span>
+            <div>
+              <h2>생성 기록</h2>
+            </div>
+          </div>
+          <div id="naverHistory" class="history-list"></div>
+        </div>
+      </section>
+
       <section id="deploy" class="panel">
         <div class="grid two">
           <div class="card">
@@ -202,6 +292,6 @@
   </main>
 
   <div id="toast" class="toast"></div>
-  <script src="/app.js?v=publish-deploy-api"></script>
+  <script src="/app.js?v=naver-publisher-ui"></script>
 </body>
 </html>
