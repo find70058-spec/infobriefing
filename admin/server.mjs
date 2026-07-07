@@ -185,13 +185,12 @@ function heading(id, text) {
   return `<h2 id="toc-${id}" style="border-left: 5px solid #2563eb; padding: 14px 0 14px 18px; margin: 40px 0 20px 0; font-size: 22px; font-weight: 700; color: #1a1a1a; line-height: 1.4; letter-spacing: -0.02em;">${escapeHtml(text)}</h2>`;
 }
 
-function buildPlusHtml({ keyword, infoTitle, button1, button2 }) {
+function buildPlusHtml({ keyword, button1, button2 }) {
   return `
       <p><!--no toc--></p>
       ${paragraph(`${keyword}를 빠르게 확인하려는 분들을 위해 신청 대상, 확인 경로, 준비해야 할 내용을 핵심만 정리했습니다. 자세한 표와 FAQ는 아래 안내 페이지에서 이어서 확인할 수 있습니다.`)}
       ${heading(0, `${keyword} 바로 확인`)}
       ${paragraph(`${keyword}는 공식 안내 페이지에서 최신 기준을 확인하는 것이 가장 중요합니다. 신청 기간, 대상 조건, 제출서류, 조회 경로는 시기별로 달라질 수 있으므로 먼저 본인에게 해당되는 항목을 확인한 뒤 진행하는 것이 좋습니다.`)}
-      ${paragraph(`아래 버튼을 누르면 ${infoTitle} 상세 안내 페이지로 이동합니다. 상세 페이지에서는 준비서류, 신청 절차, 자주 묻는 질문을 더 길게 정리해 두었습니다.`)}
       ${heading(1, `${button1} 전 확인사항`)}
       ${paragraph(`${button1} 또는 ${button2}를 진행하기 전에는 본인 인증 수단, 신청자 정보, 제출 대상 서류를 미리 준비해 두면 처리 시간을 줄일 수 있습니다. 모바일보다 PC에서 더 안정적으로 처리되는 민원도 있으니 오류가 반복되면 PC 환경을 함께 확인하세요.`)}
       <!-- CONTENT END 1 -->
@@ -343,7 +342,7 @@ async function makeDraft(input) {
         { label: button1, url: infoUrl },
         { label: button2, url: infoUrl }
       ],
-      html: buildPlusHtml({ keyword, infoTitle, button1, button2 })
+      html: buildPlusHtml({ keyword, button1, button2 })
     },
     info: {
       slug: infoSlug,
