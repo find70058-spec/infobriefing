@@ -555,6 +555,29 @@ function validateAiDraftShape(value) {
   }
 }
 
+function addOrReplaceStyle(attrs, style) {
+  const cleanAttrs = String(attrs || "").replace(/\sstyle=(["']).*?\1/i, "").trim();
+  return `${cleanAttrs ? ` ${cleanAttrs}` : ""} style="${style}"`;
+}
+
+function normalizeArticleHtml(html) {
+  return String(html || "")
+    .replace(/<h2([^>]*)>([\s\S]*?)<\/h2>/gi, (match, attrs, inner) => {
+      const id = attrs.match(/\sid=(["'])(.*?)\1/i)?.[2] || `toc-0`;
+      const text = stripHtml(inner);
+      return heading(String(id).replace(/^toc-/, ""), text);
+    })
+    .replace(/<p(?![^>]*\bstyle=)([^>]*)>/gi, (match, attrs) => {
+      return `<p${addOrReplaceStyle(attrs, "margin: 16px 0; line-height: 1.9; color: #333;")}>`;
+    })
+    .replace(/<ol(?![^>]*\bstyle=)([^>]*)>/gi, (match, attrs) => {
+      return `<ol${addOrReplaceStyle(attrs, "margin: 16px 0 24px 20px; line-height: 1.9; color: #333;")}>`;
+    })
+    .replace(/<table(?![^>]*\bclass=)([^>]*)>/gi, "<table class=\"info-table\"$1>")
+    .replace(/<table([^>]*)class=(["'])(?![^"']*\binfo-table\b)([^"']*)\2/gi, "<table$1class=$2$3 info-table$2")
+    .replace(/<details(?![^>]*\bclass=)([^>]*)>/gi, "<details$1>");
+}
+
 async function generateAiDraft({ keyword, category, contentType, officialUrl, button1, button2, sourceText }) {
   if (!hasOpenAiKey()) return null;
 
@@ -620,6 +643,8 @@ ${sourceNote}
   const raw = outputTextFromResponse(data);
   const parsed = JSON.parse(raw);
   validateAiDraftShape(parsed);
+  parsed.plus.html = normalizeArticleHtml(parsed.plus.html);
+  parsed.info.html = normalizeArticleHtml(parsed.info.html);
   return parsed;
 }
 
