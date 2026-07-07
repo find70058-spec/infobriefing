@@ -14,6 +14,8 @@ const nodeBin = join(workspaceRoot, ".tools", "node", "node.exe");
 const wranglerBin = join(workspaceRoot, "node_modules", "wrangler", "bin", "wrangler.js");
 const port = Number(process.env.PORT || 5177);
 
+await loadEnvFile();
+
 const roots = {
   plus: {
     root: plusRoot,
@@ -36,6 +38,25 @@ const mimeTypes = {
   ".json": "application/json; charset=utf-8",
   ".svg": "image/svg+xml"
 };
+
+async function loadEnvFile() {
+  const envPath = join(workspaceRoot, ".env");
+  if (!existsSync(envPath)) return;
+  const content = await readFile(envPath, "utf8");
+  for (const line of content.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const match = trimmed.match(/^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/);
+    if (!match) continue;
+    const [, key, rawValue] = match;
+    if (process.env[key]) continue;
+    process.env[key] = rawValue.trim().replace(/^["']|["']$/g, "");
+  }
+}
+
+function hasOpenAiKey() {
+  return Boolean(process.env.OPENAI_API_KEY);
+}
 
 function sendJson(res, status, data) {
   res.writeHead(status, { "content-type": "application/json; charset=utf-8" });
@@ -187,6 +208,9 @@ function heading(id, text) {
 
 function detectContentType(keyword, category) {
   const text = `${keyword} ${category}`.toLowerCase();
+  if (["travel"].includes(String(category || "").toLowerCase())) {
+    return "reservation";
+  }
   if (/(예매|예약|승차권|버스|공항|시간표|터미널|정류장|교통|요금|가격|위치|휴양림|숙소|입장권)/.test(text)) {
     return "reservation";
   }
@@ -439,6 +463,166 @@ function makeTags(keyword, contentType) {
   ];
 }
 
+function stripHtml(html) {
+  return String(html || "")
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function isFetchableSourceUrl(url) {
+  try {
+    const parsed = new URL(url);
+    return ["http:", "https:"].includes(parsed.protocol) && !parsed.hostname.includes("google.");
+  } catch {
+    return false;
+  }
+}
+
+async function fetchSourceText(url) {
+  if (!isFetchableSourceUrl(url)) return "";
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
+  try {
+    const response = await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        "user-agent": "Mozilla/5.0 LiferoomAdmin/1.0"
+      }
+    });
+    if (!response.ok) return "";
+    const type = response.headers.get("content-type") || "";
+    if (!type.includes("text/html") && !type.includes("text/plain")) return "";
+    const text = stripHtml(await response.text());
+    return text.slice(0, 12000);
+  } catch {
+    return "";
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function outputTextFromResponse(data) {
+  if (typeof data?.output_text === "string") return data.output_text;
+  const chunks = [];
+  for (const item of data?.output || []) {
+    for (const content of item?.content || []) {
+      if (typeof content?.text === "string") chunks.push(content.text);
+    }
+  }
+  return chunks.join("\n").trim();
+}
+
+function aiDraftSchema() {
+  const articleSchema = {
+    type: "object",
+    additionalProperties: false,
+    required: ["title", "description", "tags", "html"],
+    properties: {
+      title: { type: "string" },
+      description: { type: "string" },
+      tags: {
+        type: "array",
+        minItems: 5,
+        maxItems: 5,
+        items: { type: "string" }
+      },
+      html: { type: "string" }
+    }
+  };
+  return {
+    type: "object",
+    additionalProperties: false,
+    required: ["plus", "info"],
+    properties: {
+      plus: articleSchema,
+      info: articleSchema
+    }
+  };
+}
+
+function validateAiDraftShape(value) {
+  if (!value?.plus?.title || !value?.info?.title || !value?.plus?.html || !value?.info?.html) {
+    throw new Error("AI 초안 응답 형식이 올바르지 않습니다.");
+  }
+}
+
+async function generateAiDraft({ keyword, category, contentType, officialUrl, button1, button2, sourceText }) {
+  if (!hasOpenAiKey()) return null;
+
+  const model = process.env.OPENAI_MODEL || "gpt-5.5";
+  const sourceNote = sourceText
+    ? `공식 링크에서 수집한 참고자료:\n${sourceText}`
+    : "공식 링크 본문을 가져오지 못했습니다. 확인되지 않은 세부 수치, 일정, 금액, 자격조건은 단정하지 마세요.";
+
+  const prompt = `
+키워드: ${keyword}
+카테고리: ${category}
+콘텐츠 유형: ${contentType}
+B 블로그 공식 링크: ${officialUrl}
+버튼 1: ${button1}
+버튼 2: ${button2}
+
+${sourceNote}
+
+작성 규칙:
+- 한국어로 작성합니다.
+- A 블로그 plus는 1500자 이내의 짧은 전환 글입니다.
+- B 블로그 info는 A보다 더 긴 상세 글이며 표 2개 이상, FAQ 4개를 포함합니다.
+- 버튼 HTML은 만들지 마세요. 버튼은 시스템 템플릿이 별도로 삽입합니다.
+- 광고 코드는 만들지 마세요. 광고는 시스템 템플릿이 별도로 삽입합니다.
+- h2는 키워드가 들어간 구체적인 소제목으로 작성합니다.
+- 본문 HTML은 p, h2, table.info-table, ol, details/summary만 사용합니다.
+- h2 id는 toc-0부터 순서대로 사용합니다.
+- 날짜, 금액, 자격조건, 운행정보, 링크 성격은 참고자료 또는 공식 링크에서 확인되는 범위에서만 단정합니다.
+- 정보가 불확실하면 "탑승일 기준 공식 조회 화면에서 다시 확인"처럼 확인 행동으로 안내합니다.
+- 예약/예매/버스/시간표 키워드에 신청대상, 필요서류, 민원, 보완요청 같은 행정 민원 문구를 섞지 마세요.
+- 지원금/장학금/민원 키워드가 아닌 경우 신청서류형 템플릿을 쓰지 마세요.
+- title은 검색 유입을 고려하되 과장하지 않습니다.
+- description은 80자 안팎으로 작성합니다.
+- tags는 5개 작성합니다.
+`;
+
+  const response = await fetch("https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: {
+      "authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+      "content-type": "application/json"
+    },
+    body: JSON.stringify({
+      model,
+      input: prompt,
+      text: {
+        format: {
+          type: "json_schema",
+          name: "liferoom_ab_draft",
+          strict: true,
+          schema: aiDraftSchema()
+        }
+      }
+    })
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const message = data?.error?.message || "OpenAI 초안 생성에 실패했습니다.";
+    throw new Error(message);
+  }
+
+  const raw = outputTextFromResponse(data);
+  const parsed = JSON.parse(raw);
+  validateAiDraftShape(parsed);
+  return parsed;
+}
+
 async function makeDraft(input) {
   const keyword = String(input.keyword || "").trim();
   if (!keyword) throw new Error("키워드를 입력하세요.");
@@ -458,6 +642,11 @@ async function makeDraft(input) {
   const button2Default = contentType === "reservation" ? "시간표 확인" : "자세히 확인하기";
   const button1 = String(input.button1 || button1Default).trim();
   const button2 = String(input.button2 || button2Default).trim();
+  const useAi = input.useAi === "on" || input.useAi === "true";
+  const sourceText = useAi ? await fetchSourceText(officialUrl) : "";
+  const aiDraft = useAi
+    ? await generateAiDraft({ keyword, category, contentType, officialUrl, button1, button2, sourceText })
+    : null;
   const plusTitleDefault = contentType === "reservation" ? `${keyword} 빠른 확인 바로가기` : `${keyword} 빠른 확인 바로가기`;
   const infoTitleDefault = contentType === "reservation" ? `${keyword} 예약방법 시간표 상세안내` : `${keyword} 신청방법 필요서류 상세안내`;
   const plusDescriptionDefault = contentType === "reservation"
@@ -466,10 +655,14 @@ async function makeDraft(input) {
   const infoDescriptionDefault = contentType === "reservation"
     ? `${keyword}의 예약 방법, 시간표, 위치, 이용 전 준비사항, FAQ를 표와 함께 자세히 정리했습니다.`
     : `${keyword}의 신청 대상, 온라인 신청방법, 필요서류, FAQ를 표와 함께 자세히 정리했습니다.`;
-  const plusTitle = String(input.plusTitle || plusTitleDefault).trim();
-  const infoTitle = String(input.infoTitle || infoTitleDefault).trim();
-  const plusDescription = String(input.plusDescription || plusDescriptionDefault).trim();
-  const infoDescription = String(input.infoDescription || infoDescriptionDefault).trim();
+  const plusTitle = String(input.plusTitle || aiDraft?.plus?.title || plusTitleDefault).trim();
+  const infoTitle = String(input.infoTitle || aiDraft?.info?.title || infoTitleDefault).trim();
+  const plusDescription = String(input.plusDescription || aiDraft?.plus?.description || plusDescriptionDefault).trim();
+  const infoDescription = String(input.infoDescription || aiDraft?.info?.description || infoDescriptionDefault).trim();
+  const plusTags = aiDraft?.plus?.tags?.length ? aiDraft.plus.tags : makeTags(keyword, contentType);
+  const infoTags = aiDraft?.info?.tags?.length ? aiDraft.info.tags : makeTags(keyword, contentType);
+  const plusHtml = aiDraft?.plus?.html || buildPlusHtml({ keyword, button1, button2, contentType });
+  const infoHtml = aiDraft?.info?.html || buildInfoHtml({ keyword, officialUrl, button1, button2, contentType });
 
   return {
     plus: {
@@ -481,12 +674,12 @@ async function makeDraft(input) {
       publishedAt: date,
       modifiedAt: date,
       readingTime: "1분 미만",
-      tags: makeTags(keyword, contentType),
+      tags: plusTags,
       ctas: [
         { label: button1, url: infoUrl },
         { label: button2, url: infoUrl }
       ],
-      html: buildPlusHtml({ keyword, button1, button2, contentType })
+      html: plusHtml
     },
     info: {
       slug: infoSlug,
@@ -497,12 +690,12 @@ async function makeDraft(input) {
       publishedAt: date,
       modifiedAt: date,
       readingTime: "3분",
-      tags: makeTags(keyword, contentType),
+      tags: infoTags,
       ctas: [
         { label: button1, url: officialUrl },
         { label: button2, url: officialUrl }
       ],
-      html: buildInfoHtml({ keyword, officialUrl, button1, button2, contentType })
+      html: infoHtml
     }
   };
 }
@@ -600,6 +793,13 @@ async function handleApi(req, res, pathname) {
       return sendJson(res, 200, {
         plus: plus.map(({ slug, title, description, publishedAt, ctas }) => ({ slug, title, description, publishedAt, ctas })),
         info: info.map(({ slug, title, description, publishedAt, ctas }) => ({ slug, title, description, publishedAt, ctas }))
+      });
+    }
+
+    if (req.method === "GET" && pathname === "/api/ai-status") {
+      return sendJson(res, 200, {
+        enabled: hasOpenAiKey(),
+        model: process.env.OPENAI_MODEL || "gpt-5.5"
       });
     }
 

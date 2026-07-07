@@ -7,3 +7,4 @@ node-*-win-x64.zip
 package-lock.json
 wrangler-login.*.txt
 .DS_Store
+.env

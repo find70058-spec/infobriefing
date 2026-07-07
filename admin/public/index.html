@@ -77,6 +77,15 @@
             <label>
               B 블로그 공식 링크
               <input name="officialUrl" placeholder="https://www.example.go.kr/">
+              <small class="field-help">AI 사용 시 이 링크의 본문을 참고자료로 읽어 최신성/정확도를 높입니다.</small>
+            </label>
+
+            <label class="check-row">
+              <input type="checkbox" name="useAi" checked>
+              <span>
+                OpenAI로 자료 기반 초안 생성
+                <small id="aiStatus" class="field-help">AI 상태 확인 중...</small>
+              </span>
             </label>
 
             <div class="row">

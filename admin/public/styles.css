@@ -219,6 +219,27 @@ label {
   font-weight: 800;
 }
 
+.check-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 13px;
+  background: #f8fbff;
+}
+
+.check-row input {
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+}
+
+.check-row span,
+.check-row small {
+  display: block;
+}
+
 .field-help {
   color: var(--muted);
   font-size: 12px;

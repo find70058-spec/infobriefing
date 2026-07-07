@@ -140,6 +140,21 @@ async function loadPosts({ quiet = false } = {}) {
   if (!quiet) toast("글 목록을 불러왔습니다.");
 }
 
+async function loadAiStatus() {
+  const statusNode = $("#aiStatus");
+  if (!statusNode) return;
+  try {
+    const status = await api("/api/ai-status");
+    statusNode.textContent = status.enabled
+      ? `사용 가능 · ${status.model}`
+      : "키 없음 · .env에 OPENAI_API_KEY를 넣으면 사용";
+    const checkbox = document.querySelector('[name="useAi"]');
+    if (checkbox && !status.enabled) checkbox.checked = false;
+  } catch (error) {
+    statusNode.textContent = "AI 상태 확인 실패";
+  }
+}
+
 function bindNavigation() {
   $$(".nav-item").forEach((button) => {
     button.addEventListener("click", () => {
@@ -233,4 +248,5 @@ bindNavigation();
 bindForm();
 bindJobs();
 bindSlugSuggestion();
+loadAiStatus();
 loadPosts({ quiet: true }).catch((error) => toast(error.message));
