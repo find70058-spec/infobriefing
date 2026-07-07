@@ -610,7 +610,7 @@ ${sourceNote}
 - 예약/예매/버스/시간표 키워드에 신청대상, 필요서류, 민원, 보완요청 같은 행정 민원 문구를 섞지 마세요.
 - 지원금/장학금/민원 키워드가 아닌 경우 신청서류형 템플릿을 쓰지 마세요.
 - title은 검색 유입을 고려하되 과장하지 않습니다.
-- description은 80자 안팎으로 작성합니다.
+- description은 55~65자 안팎으로 짧고 명확하게 작성합니다.
 - tags는 5개 작성합니다.
 `;
 
@@ -748,8 +748,12 @@ ${infoBody}
 - 본문은 긴 문장만 이어 쓰지 말고, 반드시 3~4개의 소제목으로 나눕니다.
 - 소제목은 네이버에 붙여넣기 쉬운 일반 텍스트로 쓰고, 예시는 "신청 전 확인할 점"처럼 키워드가 들어간 문장형으로 작성합니다.
 - 본문 중간에 체크리스트 또는 준비사항 목록을 1회 이상 넣습니다. 목록은 "- "로 시작하는 줄글 리스트를 사용합니다.
-- 본문 중간에 간단한 표 형식 정보를 1회 넣습니다. 표는 "항목 | 확인 내용"처럼 파이프 문자로 구분한 텍스트 표로 작성합니다.
-- 표와 목록은 실제 B 블로그 내용에 맞는 정보만 넣고, 정보가 불확실하면 "공식 안내에서 재확인"처럼 확인 행동으로 씁니다.
+- 본문 중간에 표 대신 "요약 정리" 블록을 1회 넣습니다.
+- 요약 정리 블록은 파이프 문자(|)를 절대 쓰지 말고, 아래처럼 한 줄씩 씁니다.
+  출발지: 전주 또는 전주권 정류장명 확인
+  도착지: 인천공항 제1터미널 또는 제2터미널 확인
+  시간표: 탑승일 기준으로 다시 조회
+- 요약 정리와 목록은 실제 B 블로그 내용에 맞는 정보만 넣고, 정보가 불확실하면 "공식 안내에서 재확인"처럼 확인 행동으로 씁니다.
 - 각 소제목 앞뒤에는 빈 줄을 넣어 모바일에서 읽기 쉽게 만듭니다.
 - B 블로그 내용을 그대로 복사하지 말고, 네이버 검색 유입용 소개글처럼 재구성합니다.
 - 핵심 정보는 충분히 설명하되, 최종 확인은 A 블로그 링크로 유도합니다.
@@ -834,11 +838,11 @@ async function makeDraft(input) {
   const plusTitleDefault = contentType === "reservation" ? `${keyword} 빠른 확인 바로가기` : `${keyword} 빠른 확인 바로가기`;
   const infoTitleDefault = contentType === "reservation" ? `${keyword} 예약방법 시간표 상세안내` : `${keyword} 신청방법 필요서류 상세안내`;
   const plusDescriptionDefault = contentType === "reservation"
-    ? `${keyword}를 빠르게 확인할 수 있도록 시간표, 위치, 예약 전 준비사항을 요약했습니다.`
-    : `${keyword}를 빠르게 확인할 수 있도록 대상, 신청 경로, 준비사항을 요약했습니다.`;
+    ? `${keyword} 시간표, 위치, 예약 전 준비사항을 요약했습니다.`
+    : `${keyword} 대상, 신청 경로, 준비사항을 요약했습니다.`;
   const infoDescriptionDefault = contentType === "reservation"
-    ? `${keyword}의 예약 방법, 시간표, 위치, 이용 전 준비사항, FAQ를 표와 함께 자세히 정리했습니다.`
-    : `${keyword}의 신청 대상, 온라인 신청방법, 필요서류, FAQ를 표와 함께 자세히 정리했습니다.`;
+    ? `${keyword} 예약 방법, 시간표, 위치, FAQ를 정리했습니다.`
+    : `${keyword} 신청 대상, 온라인 신청방법, 필요서류를 정리했습니다.`;
   const plusTitle = String(input.plusTitle || aiDraft?.plus?.title || plusTitleDefault).trim();
   const infoTitle = String(input.infoTitle || aiDraft?.info?.title || infoTitleDefault).trim();
   const plusDescription = String(input.plusDescription || aiDraft?.plus?.description || plusDescriptionDefault).trim();
