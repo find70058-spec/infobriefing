@@ -27,6 +27,12 @@ function formData(form) {
   return Object.fromEntries(new FormData(form).entries());
 }
 
+function formField(form, name) {
+  const field = form.querySelector(`[name="${name}"]`);
+  if (!field) throw new Error(`${name} 입력칸을 찾을 수 없습니다.`);
+  return field;
+}
+
 function stripDraftSuffix(slug) {
   return String(slug || "").replace(/-(quick-)?guide$/, "");
 }
@@ -72,14 +78,14 @@ async function runJob(path, label, { append = false } = {}) {
 function debounceSlugSuggestion(form) {
   window.clearTimeout(slugTimer);
   slugTimer = window.setTimeout(async () => {
-    const keyword = form.keyword.value.trim();
+    const keyword = formField(form, "keyword").value.trim();
     if (!keyword || slugEditedManually) return;
     try {
       const result = await api("/api/suggest-slug", {
         method: "POST",
         body: JSON.stringify({ keyword })
       });
-      form.elements.slug.value = result.slug;
+      formField(form, "slug").value = result.slug;
     } catch (error) {
       toast(error.message);
     }
@@ -148,6 +154,7 @@ function bindNavigation() {
 function bindForm() {
   $("#draftForm").addEventListener("submit", async (event) => {
     event.preventDefault();
+    const form = event.currentTarget;
     const submitButton = event.submitter;
     if (submitButton) submitButton.disabled = true;
     $("#publishDraft").disabled = true;
@@ -155,9 +162,9 @@ function bindForm() {
     try {
       currentDraft = await api("/api/draft", {
         method: "POST",
-        body: JSON.stringify(formData(event.currentTarget))
+        body: JSON.stringify(formData(form))
       });
-      event.currentTarget.elements.slug.value = stripDraftSuffix(currentDraft.plus.slug);
+      formField(form, "slug").value = stripDraftSuffix(currentDraft.plus.slug);
       renderDraft(currentDraft);
       toast("A/B 글 초안을 생성했습니다. 빌드를 시작합니다.");
       await runJob("/api/build", "초안 생성 후 빌드");
@@ -202,9 +209,9 @@ function bindJobs() {
 
 function bindSlugSuggestion() {
   const form = $("#draftForm");
-  form.keyword.addEventListener("input", () => debounceSlugSuggestion(form));
-  form.elements.slug.addEventListener("input", () => {
-    slugEditedManually = Boolean(form.elements.slug.value.trim());
+  formField(form, "keyword").addEventListener("input", () => debounceSlugSuggestion(form));
+  formField(form, "slug").addEventListener("input", () => {
+    slugEditedManually = Boolean(formField(form, "slug").value.trim());
   });
 }
 
