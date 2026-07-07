@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Liferoom 글 발행 관리자</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <main class="shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <span class="brand-mark">L</span>
+        <div>
+          <strong>Liferoom Admin</strong>
+          <small>A/B 글 발행 관리</small>
+        </div>
+      </div>
+      <nav class="nav">
+        <button class="nav-item active" data-panel="compose">글 작성</button>
+        <button class="nav-item" data-panel="posts">글 목록</button>
+        <button class="nav-item" data-panel="deploy">빌드/배포</button>
+      </nav>
+      <div class="status-card">
+        <span class="dot"></span>
+        <div>
+          <strong>Local connected</strong>
+          <small>plus / info 저장소 제어</small>
+        </div>
+      </div>
+    </aside>
+
+    <section class="content">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">A → B 수익형 정보글</p>
+          <h1>키워드 하나로 Plus와 Info 글을 함께 생성</h1>
+        </div>
+        <button id="refreshPosts" class="ghost-button">목록 새로고침</button>
+      </header>
+
+      <section id="compose" class="panel active">
+        <div class="grid two">
+          <form id="draftForm" class="card form-card">
+            <div class="section-title">
+              <span>1</span>
+              <div>
+                <h2>기본 정보</h2>
+                <p>키워드와 버튼 링크를 입력하면 A/B 글 초안을 만듭니다.</p>
+              </div>
+            </div>
+
+            <label>
+              키워드
+              <input name="keyword" required placeholder="예: 2026 지방선거 투표소 조회 위치안내">
+            </label>
+
+            <div class="row">
+              <label>
+                카테고리
+                <select name="category">
+                  <option value="support">지원금/신청</option>
+                  <option value="tax">세금/소득</option>
+                  <option value="finance">금융/투자</option>
+                  <option value="education">교육/수강</option>
+                  <option value="life">생활가이드</option>
+                  <option value="travel">여행/예약</option>
+                </select>
+              </label>
+              <label>
+                영문 slug
+                <input name="slug" pattern="[a-z0-9]+(-[a-z0-9]+)*" placeholder="키워드 입력 시 자동 추천">
+                <small class="field-help">직접 수정 가능. 저장 시 A는 -quick-guide, B는 -guide가 자동으로 붙습니다.</small>
+              </label>
+            </div>
+
+            <label>
+              B 블로그 공식 링크
+              <input name="officialUrl" placeholder="https://www.example.go.kr/">
+            </label>
+
+            <div class="row">
+              <label>
+                버튼 1
+                <input name="button1" value="바로 신청하기">
+              </label>
+              <label>
+                버튼 2
+                <input name="button2" value="자세히 확인하기">
+              </label>
+            </div>
+
+            <details class="advanced">
+              <summary>제목/디스크립션 직접 입력</summary>
+              <label>
+                A 블로그 제목
+                <input name="plusTitle" placeholder="비워두면 자동 생성">
+              </label>
+              <label>
+                A 블로그 디스크립션
+                <textarea name="plusDescription" rows="2" placeholder="비워두면 자동 생성"></textarea>
+              </label>
+              <label>
+                B 블로그 제목
+                <input name="infoTitle" placeholder="비워두면 자동 생성">
+              </label>
+              <label>
+                B 블로그 디스크립션
+                <textarea name="infoDescription" rows="2" placeholder="비워두면 자동 생성"></textarea>
+              </label>
+            </details>
+
+            <div class="actions">
+              <button type="submit" class="primary-button">초안 생성</button>
+              <button type="button" id="publishDraft" class="secondary-button" disabled>두 블로그에 글 추가</button>
+            </div>
+          </form>
+
+          <div class="card preview-card">
+            <div class="section-title">
+              <span>2</span>
+              <div>
+                <h2>생성 결과</h2>
+                <p>저장 전 A/B 제목, 버튼 링크, 본문 구조를 확인하세요.</p>
+              </div>
+            </div>
+            <div id="draftPreview" class="empty-state">
+              아직 생성된 초안이 없습니다.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="posts" class="panel">
+        <div class="grid two">
+          <div class="card">
+            <div class="section-title">
+              <span>A</span>
+              <div>
+                <h2>Plus 글 목록</h2>
+                <p>A 블로그는 Info 글로 보내는 전환 페이지입니다.</p>
+              </div>
+            </div>
+            <div id="plusList" class="post-list"></div>
+          </div>
+          <div class="card">
+            <div class="section-title">
+              <span>B</span>
+              <div>
+                <h2>Info 글 목록</h2>
+                <p>B 블로그는 공식 링크로 보내는 상세 페이지입니다.</p>
+              </div>
+            </div>
+            <div id="infoList" class="post-list"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="deploy" class="panel">
+        <div class="grid two">
+          <div class="card">
+            <div class="section-title">
+              <span>3</span>
+              <div>
+                <h2>빌드</h2>
+                <p>글 추가 후 정적 HTML을 다시 생성합니다.</p>
+              </div>
+            </div>
+            <button id="buildBoth" class="primary-button wide">Plus + Info 빌드</button>
+          </div>
+          <div class="card">
+            <div class="section-title">
+              <span>4</span>
+              <div>
+                <h2>배포</h2>
+                <p>Cloudflare Pages에 두 블로그를 배포합니다.</p>
+              </div>
+            </div>
+            <button id="deployBoth" class="danger-button wide">Plus + Info 배포</button>
+          </div>
+        </div>
+        <div class="card log-card">
+          <div class="section-title compact">
+            <span>log</span>
+            <div>
+              <h2>작업 로그</h2>
+            </div>
+          </div>
+          <pre id="jobLog">대기 중입니다.</pre>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <div id="toast" class="toast"></div>
+  <script src="/app.js"></script>
+</body>
+</html>
