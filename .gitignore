@@ -8,3 +8,4 @@ package-lock.json
 wrangler-login.*.txt
 .DS_Store
 .env
+.admin-password.txt

@@ -3,6 +3,7 @@ let currentNaverDraft = null;
 let posts = { plus: [], info: [] };
 let slugEditedManually = false;
 let slugTimer = null;
+let authPromptPromise = null;
 
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => Array.from(document.querySelectorAll(selector));
@@ -15,11 +16,27 @@ function toast(message) {
 }
 
 async function api(path, options = {}) {
+  const password = localStorage.getItem("liferoomAdminPassword") || "";
   const response = await fetch(path, {
-    headers: { "content-type": "application/json" },
-    ...options
+    ...options,
+    headers: {
+      "content-type": "application/json",
+      ...(password ? { "x-admin-password": password } : {}),
+      ...(options.headers || {})
+    }
   });
   const data = await response.json();
+  if (response.status === 401) {
+    if (!authPromptPromise) {
+      authPromptPromise = Promise.resolve(prompt("관리자 비밀번호를 입력하세요.")).finally(() => {
+        authPromptPromise = null;
+      });
+    }
+    const nextPassword = await authPromptPromise;
+    if (!nextPassword) throw new Error(data.error || "관리자 비밀번호가 필요합니다.");
+    localStorage.setItem("liferoomAdminPassword", nextPassword);
+    return api(path, options);
+  }
   if (!response.ok) throw new Error(data.error || "요청 처리 중 오류가 발생했습니다.");
   return data;
 }
