@@ -38,6 +38,82 @@ function slugify(input) {
   return slug || `post-${Date.now()}`;
 }
 
+const slugDictionary = [
+  ["국가장학금", "national-scholarship"],
+  ["지방선거", "local-election"],
+  ["사전투표소", "early-voting-place"],
+  ["투표소", "polling-place"],
+  ["공익직불금", "public-direct-payment"],
+  ["생활지원금", "living-support-payment"],
+  ["삼성전자", "samsung-electronics"],
+  ["삼성카드", "samsung-card"],
+  ["신용카드", "credit-card"],
+  ["고객센터", "customer-service"],
+  ["분실신고", "lost-card-report"],
+  ["해지방법", "cancellation-method"],
+  ["전화번호", "phone-number"],
+  ["지원금", "support-payment"],
+  ["장학금", "scholarship"],
+  ["이음카드", "eum-card"],
+  ["잔액조회", "balance-check"],
+  ["배당금", "dividend"],
+  ["환율", "exchange-rate"],
+  ["계산기", "calculator"],
+  ["라오스", "laos"],
+  ["개인택시", "private-taxi"],
+  ["양수교육", "transfer-training"],
+  ["의무교육", "required-training"],
+  ["코히", "kohi"],
+  ["수강신청", "course-registration"],
+  ["주택임대차", "housing-lease"],
+  ["계약신고필증", "contract-report-certificate"],
+  ["자연휴양림", "recreation-forest"],
+  ["사전예약", "reservation"],
+  ["온라인신청", "online-application"],
+  ["신청기간", "application-period"],
+  ["신청방법", "application-method"],
+  ["신청대상", "eligibility"],
+  ["제출서류", "required-documents"],
+  ["필요서류", "required-documents"],
+  ["조회방법", "lookup-method"],
+  ["위치안내", "location-guide"],
+  ["온라인", "online"],
+  ["준비물", "preparation"],
+  ["지급일", "payment-date"],
+  ["지급대상", "payment-eligibility"],
+  ["지급내역", "payment-history"],
+  ["바로가기", "shortcut"],
+  ["카드", "card"],
+  ["해지", "cancellation"],
+  ["상담", "consultation"],
+  ["조회", "lookup"],
+  ["위치", "location"],
+  ["안내", "guide"],
+  ["방법", "method"],
+  ["대상", "eligibility"],
+  ["서류", "documents"],
+  ["발급", "issue"],
+  ["재발급", "reissue"],
+  ["예약", "reservation"],
+  ["가격", "price"],
+  ["일정", "schedule"],
+  ["교육", "training"],
+  ["신청", "application"],
+  ["조건", "conditions"],
+  ["한도", "limit"],
+  ["투자", "investment"],
+  ["소득", "income"],
+  ["가입", "join"]
+].sort((a, b) => b[0].length - a[0].length);
+
+function suggestBaseSlug(keyword) {
+  let text = String(keyword || "").toLowerCase();
+  for (const [ko, en] of slugDictionary) {
+    text = text.replaceAll(ko, ` ${en} `);
+  }
+  return slugify(text.replace(/[가-힣ㄱ-ㅎㅏ-ㅣ]/g, " "));
+}
+
 function stripKnownSuffix(slug) {
   return String(slug || "").replace(/-(quick-)?guide$/, "");
 }
@@ -325,7 +401,7 @@ async function makeDraft(env, input) {
   const keyword = String(input.keyword || "").trim();
   if (!keyword) throw new Error("키워드를 입력하세요.");
   const category = String(input.category || "support");
-  const baseSlug = stripKnownSuffix(slugify(input.slug || keyword));
+  const baseSlug = stripKnownSuffix(slugify(input.slug || suggestBaseSlug(keyword)));
   const plusSlug = `${baseSlug}-quick-guide`;
   const infoSlug = `${baseSlug}-guide`;
   const date = todayKorea();
@@ -465,7 +541,7 @@ async function handleApi(request, env, pathname) {
 
   if (request.method === "POST" && pathname === "/api/suggest-slug") {
     const body = await request.json();
-    const baseSlug = stripKnownSuffix(slugify(body.keyword || ""));
+    const baseSlug = stripKnownSuffix(suggestBaseSlug(body.keyword || ""));
     return json({ slug: baseSlug, plusSlug: `${baseSlug}-quick-guide`, infoSlug: `${baseSlug}-guide` });
   }
 
