@@ -185,7 +185,30 @@ function heading(id, text) {
   return `<h2 id="toc-${id}" style="border-left: 5px solid #2563eb; padding: 14px 0 14px 18px; margin: 40px 0 20px 0; font-size: 22px; font-weight: 700; color: #1a1a1a; line-height: 1.4; letter-spacing: -0.02em;">${escapeHtml(text)}</h2>`;
 }
 
-function buildPlusHtml({ keyword, button1, button2 }) {
+function detectContentType(keyword, category) {
+  const text = `${keyword} ${category}`.toLowerCase();
+  if (/(예매|예약|승차권|버스|공항|시간표|터미널|정류장|교통|요금|가격|위치|휴양림|숙소|입장권)/.test(text)) {
+    return "reservation";
+  }
+  return "application";
+}
+
+function buildReservationPlusHtml({ keyword, button1, button2 }) {
+  return `
+      <p><!--no toc--></p>
+      ${paragraph(`${keyword}를 확인할 때는 일정, 위치, 요금, 예약 가능 여부를 먼저 보는 것이 좋습니다. 아래 안내에서는 빠르게 이동할 수 있도록 핵심 확인사항만 먼저 정리했습니다.`)}
+      ${heading(0, `${keyword} 일정과 위치 확인`)}
+      ${paragraph(`${keyword}는 이용일, 출발지, 도착지, 운영 시간에 따라 선택해야 할 항목이 달라질 수 있습니다. 방문 또는 탑승 전에 공식 안내에서 최신 시간표와 이용 가능 여부를 확인하세요.`)}
+      ${heading(1, `${button1} 전 확인할 항목`)}
+      ${paragraph(`${button1} 또는 ${button2}를 누르기 전에는 이용 날짜, 인원, 출발 장소, 도착 장소, 결제 또는 발권 방식을 미리 확인해 두면 현장에서 시간을 줄일 수 있습니다.`)}
+      <!-- CONTENT END 1 -->
+    `;
+}
+
+function buildPlusHtml({ keyword, button1, button2, contentType }) {
+  if (contentType === "reservation") {
+    return buildReservationPlusHtml({ keyword, button1, button2 });
+  }
   return `
       <p><!--no toc--></p>
       ${paragraph(`${keyword}를 빠르게 확인하려는 분들을 위해 신청 대상, 확인 경로, 준비해야 할 내용을 핵심만 정리했습니다. 자세한 표와 FAQ는 아래 안내 페이지에서 이어서 확인할 수 있습니다.`)}
@@ -197,7 +220,108 @@ function buildPlusHtml({ keyword, button1, button2 }) {
     `;
 }
 
-function buildInfoHtml({ keyword, officialUrl, button1, button2 }) {
+function buildReservationInfoHtml({ keyword, officialUrl, button1, button2 }) {
+  return `
+      <p><!--no toc--></p>
+      ${paragraph(`${keyword}를 이용하려면 공식 안내에서 운영 시간과 예약 가능 여부를 먼저 확인해야 합니다. 이 글에서는 일정 확인, 예약 절차, 현장 준비사항을 표와 FAQ로 정리했습니다.`)}
+      ${heading(0, `${keyword} 시간표와 이용정보 확인`)}
+      ${paragraph(`예약형 서비스는 이용일과 장소에 따라 가능한 시간, 요금, 잔여 좌석 또는 잔여 수량이 달라질 수 있습니다. 검색 결과 요약만 보고 판단하기보다 공식 페이지의 최신 안내와 예매 화면을 함께 확인하세요.`)}
+      <table class="info-table">
+        <thead>
+          <tr>
+            <th>확인 항목</th>
+            <th>체크 내용</th>
+            <th>주의사항</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>이용일</td>
+            <td>방문일 또는 탑승일 기준으로 예약 가능 시간을 확인합니다.</td>
+            <td>주말, 공휴일, 성수기에는 조기 마감될 수 있습니다.</td>
+          </tr>
+          <tr>
+            <td>장소</td>
+            <td>출발지, 도착지, 방문 위치, 매표 위치를 구분해 확인합니다.</td>
+            <td>비슷한 이름의 정류장이나 시설을 잘못 선택하지 않도록 주의하세요.</td>
+          </tr>
+          <tr>
+            <td>요금</td>
+            <td>성인, 청소년, 어린이, 우대 요금과 결제 방식을 확인합니다.</td>
+            <td>현장 결제와 온라인 결제 조건이 다를 수 있습니다.</td>
+          </tr>
+          <tr>
+            <td>공식 링크</td>
+            <td><a href="${escapeHtml(officialUrl)}" rel="noopener">${escapeHtml(button1)}</a> 또는 <a href="${escapeHtml(officialUrl)}" rel="noopener">${escapeHtml(button2)}</a> 메뉴를 이용합니다.</td>
+            <td>예매 가능 여부는 공식 사이트의 조회 결과를 기준으로 확인하세요.</td>
+          </tr>
+        </tbody>
+      </table>
+      ${heading(1, `${keyword} 예약 방법`)}
+      ${paragraph(`공식 사이트나 앱에 접속한 뒤 이용일, 출발지 또는 이용 장소, 인원, 시간대를 차례로 선택합니다. 결제 전에는 날짜와 장소가 맞는지 다시 확인하고, 결제 완료 후 예매내역이나 모바일 티켓을 저장해 두세요.`)}
+      <ol style="margin: 16px 0 24px 20px; line-height: 1.9; color: #333;">
+        <li>공식 사이트에서 시간표 또는 예약 메뉴로 이동합니다.</li>
+        <li>이용 날짜와 출발지, 도착지 또는 방문 위치를 선택합니다.</li>
+        <li>인원과 시간대를 고르고 잔여 좌석 또는 잔여 수량을 확인합니다.</li>
+        <li>요금과 취소 조건을 확인한 뒤 결제를 진행합니다.</li>
+        <li>예매 완료 화면, 예약번호, 모바일 티켓을 저장합니다.</li>
+      </ol>
+      ${heading(2, `${keyword} 이용 전 준비사항`)}
+      ${paragraph(`예약 후에는 현장에서 바로 확인할 수 있도록 예매내역을 준비해 두는 것이 좋습니다. 교통 상황이나 현장 혼잡이 생길 수 있으므로 안내된 시간보다 여유 있게 도착하세요.`)}
+      <table class="info-table">
+        <thead>
+          <tr>
+            <th>준비사항</th>
+            <th>확인 내용</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>예약번호</td>
+            <td>예매 조회, 취소, 변경 또는 현장 확인에 사용할 수 있습니다.</td>
+          </tr>
+          <tr>
+            <td>모바일 티켓</td>
+            <td>QR, 바코드, 예매내역 화면을 미리 열어둘 수 있게 준비합니다.</td>
+          </tr>
+          <tr>
+            <td>이용 시간</td>
+            <td>예약 시간보다 여유 있게 도착해 탑승 또는 입장 절차를 진행합니다.</td>
+          </tr>
+          <tr>
+            <td>취소 조건</td>
+            <td>변경 가능 시간과 취소 수수료가 있는지 결제 전 확인합니다.</td>
+          </tr>
+        </tbody>
+      </table>
+      ${heading(3, `${keyword} FAQ`)}
+      <div class="faq-list">
+        <details>
+          <summary>${keyword}는 미리 예약해야 하나요?</summary>
+          <p>이용 시간과 잔여 좌석 또는 잔여 수량이 정해진 서비스라면 미리 예약하는 편이 안전합니다.</p>
+        </details>
+        <details>
+          <summary>모바일로도 예매 확인이 가능한가요?</summary>
+          <p>대부분 모바일 확인이 가능하지만, 현장 발권이나 별도 확인이 필요한 경우가 있으므로 예매내역의 안내를 확인하세요.</p>
+        </details>
+        <details>
+          <summary>예약 후 변경이나 취소가 가능한가요?</summary>
+          <p>예매처와 상품 조건에 따라 다릅니다. 결제 전 취소 수수료와 변경 가능 시간을 반드시 확인하는 것이 좋습니다.</p>
+        </details>
+        <details>
+          <summary>최신 시간표는 어디서 확인하나요?</summary>
+          <p>공식 사이트의 시간표 또는 예약 조회 화면을 기준으로 확인하세요. 블로그 요약보다 공식 페이지의 실시간 정보가 우선입니다.</p>
+        </details>
+      </div>
+      ${paragraph(`정리하면 ${keyword}는 일정과 장소를 먼저 확인하고, 공식 예약 화면에서 잔여 여부와 요금을 확인한 뒤 결제하는 순서로 진행하면 됩니다. 예약 후에는 예약번호와 모바일 티켓을 저장해 두세요.`)}
+      <!-- CONTENT END 1 -->
+    `;
+}
+
+function buildInfoHtml({ keyword, officialUrl, button1, button2, contentType }) {
+  if (contentType === "reservation") {
+    return buildReservationInfoHtml({ keyword, officialUrl, button1, button2 });
+  }
   return `
       <p><!--no toc--></p>
       ${paragraph(`${keyword}를 찾는 분들이 가장 먼저 확인해야 할 내용은 대상 조건, 신청 또는 조회 경로, 제출서류, 처리 일정입니다. 이 글에서는 공식 사이트에서 확인해야 할 핵심 항목과 진행 전 준비사항을 표와 FAQ로 정리했습니다.`)}
@@ -295,8 +419,17 @@ function buildInfoHtml({ keyword, officialUrl, button1, button2 }) {
     `;
 }
 
-function makeTags(keyword) {
+function makeTags(keyword, contentType) {
   const base = String(keyword).trim();
+  if (contentType === "reservation") {
+    return [
+      base,
+      `${base} 예약`,
+      `${base} 예매`,
+      `${base} 시간표`,
+      `${base} 위치`
+    ];
+  }
   return [
     base,
     `${base} 신청방법`,
@@ -319,13 +452,24 @@ async function makeDraft(input) {
   const infoSlug = `${baseSlug}-guide`;
   const infoUrl = `${roots.info.domain}/posts/${infoSlug}/`;
   const officialUrl = String(input.officialUrl || "").trim() || "https://www.google.com/search?q=" + encodeURIComponent(keyword);
-  const button1 = String(input.button1 || "바로 신청하기").trim();
-  const button2 = String(input.button2 || "자세히 확인하기").trim();
   const category = String(input.category || "support");
-  const plusTitle = String(input.plusTitle || `${keyword} 빠른 확인 바로가기`).trim();
-  const infoTitle = String(input.infoTitle || `${keyword} 신청방법 필요서류 상세안내`).trim();
-  const plusDescription = String(input.plusDescription || `${keyword}를 빠르게 확인할 수 있도록 대상, 신청 경로, 준비사항을 요약했습니다.`).trim();
-  const infoDescription = String(input.infoDescription || `${keyword}의 신청 대상, 온라인 신청방법, 필요서류, FAQ를 표와 함께 자세히 정리했습니다.`).trim();
+  const contentType = detectContentType(keyword, category);
+  const button1Default = contentType === "reservation" ? "예약 바로가기" : "바로 신청하기";
+  const button2Default = contentType === "reservation" ? "시간표 확인" : "자세히 확인하기";
+  const button1 = String(input.button1 || button1Default).trim();
+  const button2 = String(input.button2 || button2Default).trim();
+  const plusTitleDefault = contentType === "reservation" ? `${keyword} 빠른 확인 바로가기` : `${keyword} 빠른 확인 바로가기`;
+  const infoTitleDefault = contentType === "reservation" ? `${keyword} 예약방법 시간표 상세안내` : `${keyword} 신청방법 필요서류 상세안내`;
+  const plusDescriptionDefault = contentType === "reservation"
+    ? `${keyword}를 빠르게 확인할 수 있도록 시간표, 위치, 예약 전 준비사항을 요약했습니다.`
+    : `${keyword}를 빠르게 확인할 수 있도록 대상, 신청 경로, 준비사항을 요약했습니다.`;
+  const infoDescriptionDefault = contentType === "reservation"
+    ? `${keyword}의 예약 방법, 시간표, 위치, 이용 전 준비사항, FAQ를 표와 함께 자세히 정리했습니다.`
+    : `${keyword}의 신청 대상, 온라인 신청방법, 필요서류, FAQ를 표와 함께 자세히 정리했습니다.`;
+  const plusTitle = String(input.plusTitle || plusTitleDefault).trim();
+  const infoTitle = String(input.infoTitle || infoTitleDefault).trim();
+  const plusDescription = String(input.plusDescription || plusDescriptionDefault).trim();
+  const infoDescription = String(input.infoDescription || infoDescriptionDefault).trim();
 
   return {
     plus: {
@@ -337,12 +481,12 @@ async function makeDraft(input) {
       publishedAt: date,
       modifiedAt: date,
       readingTime: "1분 미만",
-      tags: makeTags(keyword),
+      tags: makeTags(keyword, contentType),
       ctas: [
         { label: button1, url: infoUrl },
         { label: button2, url: infoUrl }
       ],
-      html: buildPlusHtml({ keyword, button1, button2 })
+      html: buildPlusHtml({ keyword, button1, button2, contentType })
     },
     info: {
       slug: infoSlug,
@@ -353,12 +497,12 @@ async function makeDraft(input) {
       publishedAt: date,
       modifiedAt: date,
       readingTime: "3분",
-      tags: makeTags(keyword),
+      tags: makeTags(keyword, contentType),
       ctas: [
         { label: button1, url: officialUrl },
         { label: button2, url: officialUrl }
       ],
-      html: buildInfoHtml({ keyword, officialUrl, button1, button2 })
+      html: buildInfoHtml({ keyword, officialUrl, button1, button2, contentType })
     }
   };
 }
