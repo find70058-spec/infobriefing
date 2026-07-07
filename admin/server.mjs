@@ -487,6 +487,45 @@ async function handleApi(req, res, pathname) {
       });
     }
 
+    if (req.method === "POST" && pathname === "/api/publish-deploy") {
+      const draft = await readBody(req);
+      if (!draft.plus || !draft.info) throw new Error("초안 데이터가 없습니다.");
+      await appendArticle("plus", draft.plus);
+      await appendArticle("info", draft.info);
+      const buildResult = {
+        plus: await build("plus"),
+        info: await build("info")
+      };
+      if (buildResult.plus.code || buildResult.info.code) {
+        return sendJson(res, 500, {
+          error: "글은 추가됐지만 빌드에 실패했습니다.",
+          plusUrl: `${roots.plus.domain}/posts/${draft.plus.slug}/`,
+          infoUrl: `${roots.info.domain}/posts/${draft.info.slug}/`,
+          build: buildResult
+        });
+      }
+      const deployResult = {
+        plus: await deploy("plus"),
+        info: await deploy("info")
+      };
+      if (deployResult.plus.code || deployResult.info.code) {
+        return sendJson(res, 500, {
+          error: "글과 빌드는 완료됐지만 배포에 실패했습니다.",
+          plusUrl: `${roots.plus.domain}/posts/${draft.plus.slug}/`,
+          infoUrl: `${roots.info.domain}/posts/${draft.info.slug}/`,
+          build: buildResult,
+          deploy: deployResult
+        });
+      }
+      return sendJson(res, 200, {
+        ok: true,
+        plusUrl: `${roots.plus.domain}/posts/${draft.plus.slug}/`,
+        infoUrl: `${roots.info.domain}/posts/${draft.info.slug}/`,
+        build: buildResult,
+        deploy: deployResult
+      });
+    }
+
     if (req.method === "POST" && pathname === "/api/build") {
       const [plus, info] = await Promise.all([build("plus"), build("info")]);
       return sendJson(res, plus.code || info.code ? 500 : 200, { plus, info });

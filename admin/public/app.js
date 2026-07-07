@@ -181,15 +181,29 @@ function bindForm() {
     publishButton.disabled = true;
 
     try {
-      const result = await api("/api/publish", {
+      setLog("글 추가, 빌드, 배포를 한 번에 실행 중...");
+      const result = await api("/api/publish-deploy", {
         method: "POST",
         body: JSON.stringify(currentDraft)
       });
       await loadPosts({ quiet: true });
-      setLog(`글 추가 완료\nA: ${result.plusUrl}\nB: ${result.infoUrl}`);
-      toast("글을 추가했습니다. 빌드 후 바로 배포합니다.");
-      await runJob("/api/build", "글 추가 후 빌드", { append: true });
-      await runJob("/api/deploy", "글 추가 후 배포", { append: true });
+      setLog([
+        `글 추가/빌드/배포 완료`,
+        `A: ${result.plusUrl}`,
+        `B: ${result.infoUrl}`,
+        "",
+        `[BUILD PLUS] exit ${result.build.plus.code}`,
+        result.build.plus.output,
+        "",
+        `[BUILD INFO] exit ${result.build.info.code}`,
+        result.build.info.output,
+        "",
+        `[DEPLOY PLUS] exit ${result.deploy.plus.code}`,
+        result.deploy.plus.output,
+        "",
+        `[DEPLOY INFO] exit ${result.deploy.info.code}`,
+        result.deploy.info.output
+      ].join("\n"));
       toast("글 추가, 빌드, 배포를 모두 완료했습니다.");
     } catch (error) {
       toast(error.message);
