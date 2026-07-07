@@ -64,12 +64,16 @@ function findMatchingPlusArticle(infoSlug) {
 }
 
 function setLog(data) {
-  $("#jobLog").textContent = typeof data === "string" ? data : JSON.stringify(data, null, 2);
+  const log = $("#jobLog");
+  if (!log) return;
+  log.textContent = typeof data === "string" ? data : JSON.stringify(data, null, 2);
 }
 
 function appendLog(data) {
-  const current = $("#jobLog").textContent;
-  $("#jobLog").textContent = current && current !== "대기 중입니다." ? `${current}\n\n${data}` : data;
+  const log = $("#jobLog");
+  if (!log) return;
+  const current = log.textContent;
+  log.textContent = current && current !== "대기 중입니다." ? `${current}\n\n${data}` : data;
 }
 
 async function runJob(path, label, { append = false } = {}) {
@@ -425,11 +429,6 @@ function bindNaver() {
 
 function bindJobs() {
   $("#refreshPosts").addEventListener("click", () => loadPosts().catch((error) => toast(error.message)));
-  $("#buildBoth").addEventListener("click", () => runJob("/api/build", "수동 빌드").catch((error) => toast(error.message)));
-  $("#deployBoth").addEventListener("click", () => {
-    if (!confirm("Cloudflare Pages에 Plus와 Info를 모두 배포할까요?")) return;
-    runJob("/api/deploy", "수동 배포").catch((error) => toast(error.message));
-  });
 }
 
 function bindSlugSuggestion() {
