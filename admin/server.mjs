@@ -610,7 +610,7 @@ ${sourceNote}
 - 예약/예매/버스/시간표 키워드에 신청대상, 필요서류, 민원, 보완요청 같은 행정 민원 문구를 섞지 마세요.
 - 지원금/장학금/민원 키워드가 아닌 경우 신청서류형 템플릿을 쓰지 마세요.
 - title은 검색 유입을 고려하되 과장하지 않습니다.
-- description은 55~65자 안팎으로 짧고 명확하게 작성합니다.
+- description은 200자 이내로 작성합니다. 검색자가 내용을 바로 이해할 수 있게 자연스러운 1~2문장으로 쓰고, 키워드를 억지로 반복하지 않습니다.
 - tags는 5개 작성합니다.
 `;
 
@@ -844,11 +844,11 @@ async function makeDraft(input) {
   const plusTitleDefault = contentType === "reservation" ? `${keyword} 빠른 확인 바로가기` : `${keyword} 빠른 확인 바로가기`;
   const infoTitleDefault = contentType === "reservation" ? `${keyword} 예약방법 시간표 상세안내` : `${keyword} 신청방법 필요서류 상세안내`;
   const plusDescriptionDefault = contentType === "reservation"
-    ? `${keyword} 시간표, 위치, 예약 전 준비사항을 요약했습니다.`
-    : `${keyword} 대상, 신청 경로, 준비사항을 요약했습니다.`;
+    ? `${keyword}를 확인하는 분들을 위해 시간표, 위치, 예약 전 체크할 내용을 자연스럽게 정리했습니다.`
+    : `${keyword}를 찾는 분들이 먼저 봐야 할 대상, 신청 경로, 준비사항을 자연스럽게 정리했습니다.`;
   const infoDescriptionDefault = contentType === "reservation"
-    ? `${keyword} 예약 방법, 시간표, 위치, FAQ를 정리했습니다.`
-    : `${keyword} 신청 대상, 온라인 신청방법, 필요서류를 정리했습니다.`;
+    ? `${keyword} 예약 전 확인할 시간표, 위치, 이용 절차와 자주 헷갈리는 내용을 한 번에 살펴볼 수 있게 정리했습니다.`
+    : `${keyword} 신청 대상과 온라인 신청방법, 준비해야 할 서류와 자주 묻는 내용을 한 번에 살펴볼 수 있게 정리했습니다.`;
   const plusTitle = String(input.plusTitle || aiDraft?.plus?.title || plusTitleDefault).trim();
   const infoTitle = String(input.infoTitle || aiDraft?.info?.title || infoTitleDefault).trim();
   const plusDescription = String(input.plusDescription || aiDraft?.plus?.description || plusDescriptionDefault).trim();
