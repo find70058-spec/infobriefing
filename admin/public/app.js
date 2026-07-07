@@ -79,7 +79,7 @@ function debounceSlugSuggestion(form) {
         method: "POST",
         body: JSON.stringify({ keyword })
       });
-      form.slug.value = result.slug;
+      form.elements.slug.value = result.slug;
     } catch (error) {
       toast(error.message);
     }
@@ -87,6 +87,7 @@ function debounceSlugSuggestion(form) {
 }
 
 function renderDraftArticle(kind, article) {
+  if (!article) return `<div class="draft-box"><h3>${kind}</h3><p>초안 데이터가 없습니다.</p></div>`;
   const url = articleUrl(kind, article);
   const ctas = article.ctas.map((cta) => `<span class="pill">${cta.label}</span>`).join("");
   return `<div class="draft-box">
@@ -99,6 +100,9 @@ function renderDraftArticle(kind, article) {
 }
 
 function renderDraft(draft) {
+  if (!draft?.plus || !draft?.info) {
+    throw new Error("초안 생성 결과가 올바르지 않습니다.");
+  }
   $("#draftPreview").className = "draft-grid";
   $("#draftPreview").innerHTML = `
     ${renderDraftArticle("plus", draft.plus)}
@@ -153,7 +157,7 @@ function bindForm() {
         method: "POST",
         body: JSON.stringify(formData(event.currentTarget))
       });
-      event.currentTarget.slug.value = stripDraftSuffix(currentDraft.plus.slug);
+      event.currentTarget.elements.slug.value = stripDraftSuffix(currentDraft.plus.slug);
       renderDraft(currentDraft);
       toast("A/B 글 초안을 생성했습니다. 빌드를 시작합니다.");
       await runJob("/api/build", "초안 생성 후 빌드");
@@ -199,8 +203,8 @@ function bindJobs() {
 function bindSlugSuggestion() {
   const form = $("#draftForm");
   form.keyword.addEventListener("input", () => debounceSlugSuggestion(form));
-  form.slug.addEventListener("input", () => {
-    slugEditedManually = Boolean(form.slug.value.trim());
+  form.elements.slug.addEventListener("input", () => {
+    slugEditedManually = Boolean(form.elements.slug.value.trim());
   });
 }
 
