@@ -294,6 +294,409 @@ async function appendArticle(env, kind, article) {
   });
 }
 
+const accountId = "a4f59aa5f757baf5c4f2b20bbb9201bc";
+
+const pageProjects = {
+  plus: "liferoom-plus",
+  info: "liferoom-info"
+};
+
+const siteDefaults = {
+  plus: {
+    name: "라이프룸 플러스",
+    description: "세금, 지원금, 생활 행정 정보를 빠르게 확인하는 정보 안내 사이트입니다.",
+    defaultImage: "/assets/og-image.jpg",
+    adsenseClient: "ca-pub-3935732085325115",
+    adsenseSlot: "7602926919",
+    assetVersion: "20260707-plus-og-image"
+  },
+  info: {
+    name: "라이프룸 인포",
+    description: "세금, 지원금, 생활 행정 정보를 자세히 확인하는 상세 안내 사이트입니다.",
+    defaultImage: "",
+    adsenseClient: "ca-pub-3935732085325115",
+    adsenseSlot: "7602926919",
+    assetVersion: "20260707-ai-html-style-fix"
+  }
+};
+
+const categoryDefaults = {
+  tax: { name: "세금·소득", description: "종합소득세, 경정청구 등 세금 관련 정보를 정리합니다." },
+  support: { name: "정부지원금", description: "지역 지원금, 생활 지원금, 신청 대상과 절차를 안내합니다." },
+  life: { name: "생활정보", description: "일상에서 바로 확인해야 하는 생활 행정 정보를 다룹니다." },
+  finance: { name: "금융·투자", description: "정책금융, 투자상품, 금융 서류 발급 안내를 정리합니다." },
+  education: { name: "교육·자격", description: "온라인 교육, 의무교육, 직무별 필수교육 신청 정보를 정리합니다." },
+  travel: { name: "여행·예약", description: "예약, 요금, 위치, 이용방법 정보를 정리합니다." }
+};
+
+function bytesFromBase64(base64) {
+  const binary = atob(base64.replace(/\s/g, ""));
+  return Uint8Array.from(binary, (char) => char.charCodeAt(0));
+}
+
+function bytesToBase64(bytes) {
+  let binary = "";
+  for (let index = 0; index < bytes.length; index += 0x8000) {
+    binary += String.fromCharCode(...bytes.subarray(index, index + 0x8000));
+  }
+  return btoa(binary);
+}
+
+function textBytes(text) {
+  return new TextEncoder().encode(text);
+}
+
+function mimeType(path) {
+  if (path.endsWith(".html")) return "text/html; charset=utf-8";
+  if (path.endsWith(".css")) return "text/css; charset=utf-8";
+  if (path.endsWith(".js")) return "text/javascript; charset=utf-8";
+  if (path.endsWith(".json")) return "application/json; charset=utf-8";
+  if (path.endsWith(".xml")) return "application/xml; charset=utf-8";
+  if (path.endsWith(".txt")) return "text/plain; charset=utf-8";
+  if (path.endsWith(".svg")) return "image/svg+xml";
+  if (path.endsWith(".jpg") || path.endsWith(".jpeg")) return "image/jpeg";
+  if (path.endsWith(".png")) return "image/png";
+  if (path.endsWith(".webp")) return "image/webp";
+  return "application/octet-stream";
+}
+
+async function hashFile(path, bytes) {
+  const extension = path.includes(".") ? path.split(".").pop() : "";
+  const base64 = bytesToBase64(bytes);
+  const digest = await crypto.subtle.digest("SHA-256", textBytes(`${base64}${extension}`));
+  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("").slice(0, 32);
+}
+
+function addFile(files, path, body, contentType = mimeType(path)) {
+  const bytes = typeof body === "string" ? textBytes(body) : body;
+  files.set(path.replace(/^\/+/, ""), { bytes, contentType });
+}
+
+function renderSiteAd(site, comment = "[plus-liferoom-middle]") {
+  return `<div class="ad-block">
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${site.adsenseClient}"
+     crossorigin="anonymous"></script>
+<!-- ${comment} -->
+<ins class="adsbygoogle"
+     style="display:block"
+     data-ad-client="${site.adsenseClient}"
+     data-ad-slot="${site.adsenseSlot}"
+     data-ad-format="auto"
+     data-full-width-responsive="true"></ins>
+<script>
+     (adsbygoogle = window.adsbygoogle || []).push({});
+</script></div>`;
+}
+
+function renderSiteCtas(article) {
+  return `<div class="cta-stack">${(article.ctas || [])
+    .map((cta) => `<a href="${esc(cta.url)}" rel="noopener">${esc(cta.label)}</a>`)
+    .join("")}</div>`;
+}
+
+function renderQuickCheck(article) {
+  const target = article.ctas?.[0]?.url;
+  return target ? `<div class="cta-stack cta-stack-bottom"><a href="${esc(target)}" rel="noopener">바로확인하기</a></div>` : "";
+}
+
+function prepareSiteArticleHtml(site, article) {
+  const cleaned = String(article.html || "")
+    .replaceAll("{{CTA_BUTTONS}}", "")
+    .replaceAll("{{MIDDLE_AD}}", "");
+  return cleaned.replace(/(<h2\b[\s\S]*?<\/h2>)/i, `$1${renderSiteAd(site, "[plus-liferoom-middle]")}`);
+}
+
+function absoluteSiteUrl(site, path) {
+  return new URL(path, site.domain).toString();
+}
+
+function articlePath(article) {
+  return `/posts/${article.slug}/`;
+}
+
+function categoryPath(slug) {
+  return `/category/${slug}/`;
+}
+
+function pageLayout(site, { title, description, path, body, type = "website", jsonLd = "" }) {
+  const url = absoluteSiteUrl(site, path);
+  const pageTitle = title === site.name ? title : `${title} | ${site.name}`;
+  const socialTitle = type === "article" ? title : pageTitle;
+  const imageUrl = site.defaultImage ? absoluteSiteUrl(site, site.defaultImage) : "";
+  const imageTags = imageUrl ? `
+<meta property="og:image" content="${esc(imageUrl)}">
+<meta property="og:image:secure_url" content="${esc(imageUrl)}">
+<meta property="og:image:type" content="image/jpeg">
+<meta property="og:image:width" content="1024">
+<meta property="og:image:height" content="645">
+<meta name="twitter:image" content="${esc(imageUrl)}">` : "";
+  return `<!DOCTYPE html>
+<html lang="ko-KR" prefix="og: https://ogp.me/ns#">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${esc(pageTitle)}</title>
+<meta name="description" content="${esc(description)}">
+<meta name="robots" content="follow, index, max-snippet:-1, max-video-preview:-1, max-image-preview:large">
+<link rel="canonical" href="${esc(url)}">
+<meta property="og:locale" content="ko_KR">
+<meta property="og:type" content="${type === "article" ? "article" : "website"}">
+<meta property="og:title" content="${esc(socialTitle)}">
+<meta property="og:description" content="${esc(description)}">
+<meta property="og:url" content="${esc(url)}">
+<meta property="og:site_name" content="${esc(site.name)}">${imageTags}
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="${esc(socialTitle)}">
+<meta name="twitter:description" content="${esc(description)}">
+<meta name="twitter:url" content="${esc(url)}">
+<link rel="preconnect" href="https://pagead2.googlesyndication.com">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:500,400,700&display=fallback">
+<link rel="stylesheet" href="/assets/styles.css?v=${site.assetVersion}">
+<script async crossorigin="anonymous" src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${site.adsenseClient}"></script>
+${jsonLd}
+</head>
+<body>
+<div class="site">
+  <main class="site-content">
+    ${body}
+  </main>
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <p>저작권 &copy; 2026<br>※ 해당 웹사이트는 정보 전달을 목적으로 운영하고 있으며, 금융 상품 판매 및 중개의 목적이 아닌 정보만 전달합니다. 조회, 신청 및 다운로드와 같은 편의 서비스에 관한 내용은 관련 처리기관 홈페이지를 참고하시기 바랍니다.</p>
+    </div>
+  </footer>
+</div>
+</body>
+</html>`;
+}
+
+function renderSiteArticle(kind, site, articles, article) {
+  const category = categoryDefaults[article.category] || categoryDefaults.life;
+  const url = absoluteSiteUrl(site, articlePath(article));
+  const jsonLd = `<script type="application/ld+json">${JSON.stringify({
+    "@context": "https://schema.org",
+    "@graph": [
+      { "@type": ["Person", "Organization"], "@id": `${site.domain}/#person`, name: site.name },
+      { "@type": "WebSite", "@id": `${site.domain}/#website`, url: site.domain, name: site.name, publisher: { "@id": `${site.domain}/#person` }, inLanguage: "ko-KR" },
+      {
+        "@type": "BreadcrumbList",
+        "@id": `${url}#breadcrumb`,
+        itemListElement: [
+          { "@type": "ListItem", position: 1, item: { "@id": site.domain, name: "Home" } },
+          { "@type": "ListItem", position: 2, item: { "@id": absoluteSiteUrl(site, categoryPath(article.category)), name: category.name } },
+          { "@type": "ListItem", position: 3, item: { "@id": url, name: article.title } }
+        ]
+      },
+      {
+        "@type": "BlogPosting",
+        headline: article.title,
+        datePublished: `${article.publishedAt}T00:00:00+09:00`,
+        dateModified: `${article.modifiedAt || article.publishedAt}T00:00:00+09:00`,
+        articleSection: category.name,
+        author: { "@type": "Person", name: article.author || "Lsejin" },
+        publisher: { "@id": `${site.domain}/#person` },
+        image: site.defaultImage ? absoluteSiteUrl(site, site.defaultImage) : undefined,
+        description: article.description,
+        name: article.title,
+        "@id": `${url}#richSnippet`,
+        isPartOf: { "@id": `${url}#webpage` },
+        inLanguage: "ko-KR",
+        mainEntityOfPage: { "@id": `${url}#webpage` }
+      }
+    ]
+  })}</script>`;
+  const bodyHtml = prepareSiteArticleHtml(site, article);
+  const quickCheck = kind === "plus" ? renderQuickCheck(article) : "";
+  const body = `<div class="container">
+  <article class="article-card">
+    ${renderSiteAd(site, "[plus-liferoom-middle]")}
+    <header class="entry-header">
+      <h1 class="entry-title">${esc(article.title)}</h1>
+      <div class="entry-meta">
+        <img class="avatar" alt="" src="https://secure.gravatar.com/avatar/869f0011c6e5c60b2508ca40df2e025a6628a35be167620280cc13225fe8506d?s=40&amp;d=mm&amp;r=g" width="40" height="40">
+        <span>글쓴이 ${esc(article.author || "Lsejin")} / ${esc(article.publishedAt || "")}</span>
+      </div>
+      <p class="entry-description">${esc(article.description)}</p>
+      ${renderSiteCtas(article)}
+    </header>
+    <div class="entry-content">${bodyHtml}${quickCheck}</div>
+  </article>
+</div>
+<nav class="post-navigation" aria-label="게시물">
+  <div class="nav-links">
+    <div class="nav-previous"><a href="/"><span>이전</span><p>${esc(site.name)} 최신 정보 보기</p></a></div>
+  </div>
+</nav>`;
+  return pageLayout(site, { title: article.title, description: article.description, path: articlePath(article), body, type: "article", jsonLd });
+}
+
+function renderSiteHome(site, articles) {
+  const body = `<section class="home-hero">
+  <div class="container">
+    <h1>${esc(site.name)}</h1>
+    <p>${esc(site.description)}</p>
+  </div>
+</section>
+<section class="container post-list">
+  ${articles.map((article) => `<a class="post-item" href="${articlePath(article)}"><strong>${esc(article.title)}</strong><span>${esc(article.description)}</span></a>`).join("")}
+</section>`;
+  return pageLayout(site, { title: site.name, description: site.description, path: "/", body });
+}
+
+function renderSiteCategory(site, articles, slug) {
+  const category = categoryDefaults[slug] || { name: slug, description: `${slug} 정보입니다.` };
+  const items = articles.filter((article) => article.category === slug);
+  const body = `<section class="home-hero">
+  <div class="container">
+    <h1>${esc(category.name)}</h1>
+    <p>${esc(category.description)}</p>
+  </div>
+</section>
+<section class="container post-list">
+  ${items.map((article) => `<a class="post-item" href="${articlePath(article)}"><strong>${esc(article.title)}</strong><span>${esc(article.description)}</span></a>`).join("")}
+</section>`;
+  return pageLayout(site, { title: `${category.name} 정보`, description: category.description, path: categoryPath(slug), body });
+}
+
+function renderSitemap(site, articles) {
+  const categorySlugs = [...new Set(articles.map((article) => article.category).filter(Boolean))];
+  const urls = ["/", ...categorySlugs.map(categoryPath), ...articles.map(articlePath)];
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${urls.map((url) => `  <url><loc>${absoluteSiteUrl(site, url)}</loc></url>`).join("\n")}
+</urlset>`;
+}
+
+async function fetchPublicFiles(env, kind) {
+  const config = repos[kind];
+  const tree = await github(env, `/repos/${owner}/${config.repo}/git/trees/main?recursive=1`);
+  const files = new Map();
+  const publicItems = (tree.tree || []).filter((item) => item.type === "blob" && item.path.startsWith("public/"));
+  for (const item of publicItems) {
+    const data = await github(env, `/repos/${owner}/${config.repo}/contents/${encodeURIComponent(item.path).replaceAll("%2F", "/")}?ref=main`);
+    files.set(item.path.replace(/^public\//, ""), bytesFromBase64(data.content));
+  }
+  return files;
+}
+
+async function buildStaticFiles(env, kind) {
+  const file = await readArticlesFile(env, kind);
+  const articles = parseArticles(file.content);
+  const site = { ...siteDefaults[kind], domain: repos[kind].domain };
+  const files = new Map();
+
+  for (const [path, bytes] of await fetchPublicFiles(env, kind)) {
+    addFile(files, path, bytes);
+  }
+
+  addFile(files, "index.html", renderSiteHome(site, articles));
+  for (const slug of [...new Set(articles.map((article) => article.category).filter(Boolean))]) {
+    addFile(files, `category/${slug}/index.html`, renderSiteCategory(site, articles, slug));
+  }
+  for (const article of articles) {
+    addFile(files, `posts/${article.slug}/index.html`, renderSiteArticle(kind, site, articles, article));
+  }
+  addFile(files, "sitemap.xml", renderSitemap(site, articles));
+  addFile(files, "robots.txt", `User-agent: *\nAllow: /\nSitemap: ${absoluteSiteUrl(site, "/sitemap.xml")}\n`);
+  addFile(files, "ads.txt", "google.com, pub-3935732085325115, DIRECT, f08c47fec0942fa0\n");
+  addFile(files, "_headers", "/*\n  X-Content-Type-Options: nosniff\n  Referrer-Policy: strict-origin-when-cross-origin\n");
+  return files;
+}
+
+async function cloudflare(env, path, options = {}) {
+  const token = env.CF_API_TOKEN || env.CLOUDFLARE_API_TOKEN;
+  if (!token) throw new Error("CF_API_TOKEN secret is not set. Cloudflare Pages direct deploy needs a Pages Write API token.");
+  const response = await fetch(`https://api.cloudflare.com/client/v4${path}`, {
+    ...options,
+    headers: {
+      "authorization": `Bearer ${token}`,
+      ...(options.body instanceof FormData ? {} : { "content-type": "application/json" }),
+      ...(options.headers || {})
+    }
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || data.success === false) {
+    const message = data?.errors?.[0]?.message || data?.message || `Cloudflare API failed: ${response.status}`;
+    throw new Error(message);
+  }
+  return data.result ?? data;
+}
+
+async function deployPages(env, kind) {
+  const files = await buildStaticFiles(env, kind);
+  const projectName = pageProjects[kind];
+  const tokenData = await cloudflare(env, `/accounts/${accountId}/pages/projects/${projectName}/upload-token`);
+  const jwt = tokenData.jwt;
+  const prepared = [];
+  const manifest = {};
+
+  for (const [path, file] of files) {
+    const hash = await hashFile(path, file.bytes);
+    prepared.push({ path, hash, ...file });
+    manifest[`/${path}`] = hash;
+  }
+
+  const chunks = [];
+  for (let index = 0; index < prepared.length; index += 20) {
+    chunks.push(prepared.slice(index, index + 20));
+  }
+  for (const chunk of chunks) {
+    await fetch("https://api.cloudflare.com/client/v4/pages/assets/upload", {
+      method: "POST",
+      headers: {
+        "authorization": `Bearer ${jwt}`,
+        "content-type": "application/json"
+      },
+      body: JSON.stringify(chunk.map((file) => ({
+        key: file.hash,
+        value: bytesToBase64(file.bytes),
+        metadata: { contentType: file.contentType },
+        base64: true
+      })))
+    }).then(async (response) => {
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || data.success === false) {
+        throw new Error(data?.errors?.[0]?.message || `Cloudflare asset upload failed: ${response.status}`);
+      }
+    });
+  }
+
+  await fetch("https://api.cloudflare.com/client/v4/pages/assets/upsert-hashes", {
+    method: "POST",
+    headers: {
+      "authorization": `Bearer ${jwt}`,
+      "content-type": "application/json"
+    },
+    body: JSON.stringify({ hashes: prepared.map((file) => file.hash) })
+  }).then(async (response) => {
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data.success === false) {
+      throw new Error(data?.errors?.[0]?.message || `Cloudflare hash upsert failed: ${response.status}`);
+    }
+  });
+
+  const form = new FormData();
+  form.append("manifest", JSON.stringify(manifest));
+  form.append("branch", "main");
+  form.append("commit_message", `Deploy articles to ${projectName}`);
+  form.append("commit_dirty", "false");
+  if (files.has("_headers")) {
+    form.append("_headers", new File([files.get("_headers").bytes], "_headers", { type: "text/plain" }));
+  }
+  const deployment = await cloudflare(env, `/accounts/${accountId}/pages/projects/${projectName}/deployments`, {
+    method: "POST",
+    body: form
+  });
+
+  return {
+    code: 0,
+    output: `Cloudflare Pages direct deployment complete: ${deployment.url || `${projectName}.pages.dev`}`,
+    files: prepared.length,
+    url: deployment.url || ""
+  };
+}
+
 function paragraph(text) {
   return `<p style="margin: 16px 0; line-height: 1.9; color: #333;">${esc(text)}</p>`;
 }
@@ -558,13 +961,17 @@ async function handleApi(request, env, pathname) {
     if (!draft.plus || !draft.info) throw new Error("초안 데이터가 없습니다.");
     await appendArticle(env, "plus", draft.plus);
     await appendArticle(env, "info", draft.info);
-    const output = "GitHub에 글을 커밋했습니다. Cloudflare Pages Git 연동 배포가 곧 진행됩니다.";
+    const deploy = {
+      plus: await deployPages(env, "plus"),
+      info: await deployPages(env, "info")
+    };
+    const output = "GitHub commit and Cloudflare Pages direct deployment completed.";
     return json({
       ok: true,
       plusUrl: articleUrl("plus", draft.plus.slug),
       infoUrl: articleUrl("info", draft.info.slug),
       build: { plus: { code: 0, output }, info: { code: 0, output } },
-      deploy: { plus: { code: 0, output }, info: { code: 0, output } }
+      deploy
     });
   }
 
