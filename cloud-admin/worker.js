@@ -736,6 +736,15 @@ function fallbackInfoHtml(keyword) {
     `;
 }
 
+function removeExternalUrlsFromPlusHtml(html) {
+  return String(html || "")
+    .replace(/<a\b[^>]*href=(["'])https?:\/\/(?!plus\.liferoom-j\.com|info\.liferoom-j\.com)[^"']+\1[^>]*>([\s\S]*?)<\/a>/gi, "$2")
+    .replace(/(?:공식\s*(?:링크|홈페이지|확인처|안내\s*주소|주소)\s*(?:는|:)?\s*)?https?:\/\/[^\s<)"']+/gi, "공식 안내 화면")
+    .replace(/공식\s+링크\s*:\s*/gi, "")
+    .replace(/홈페이지\s+주소\s*는\s*공식 안내 화면\s*입니다/gi, "공식 안내 화면에서 확인할 수 있습니다")
+    .replace(/\s{2,}/g, " ");
+}
+
 function detectContentType(keyword, category) {
   const text = `${keyword} ${category}`;
   return /(예매|예약|승차권|버스|공항|시간표|터미널|정류장|교통|요금|가격|위치|휴양림|숙소|입장권)/.test(text)
@@ -772,6 +781,27 @@ function naverSchema() {
       titles: { type: "array", minItems: 3, maxItems: 3, items: { type: "string" } },
       body: { type: "string" },
       hashtags: { type: "array", minItems: 5, maxItems: 8, items: { type: "string" } }
+    }
+  };
+}
+
+function paxnetSchema() {
+  return {
+    type: "object",
+    additionalProperties: false,
+    required: ["label", "title", "intro", "paragraph1", "paragraph2", "boxTitle", "boxParagraph1", "boxParagraph2", "afterBoxParagraph1", "afterBoxParagraph2", "steps"],
+    properties: {
+      label: { type: "string" },
+      title: { type: "string" },
+      intro: { type: "string" },
+      paragraph1: { type: "string" },
+      paragraph2: { type: "string" },
+      boxTitle: { type: "string" },
+      boxParagraph1: { type: "string" },
+      boxParagraph2: { type: "string" },
+      afterBoxParagraph1: { type: "string" },
+      afterBoxParagraph2: { type: "string" },
+      steps: { type: "array", minItems: 5, maxItems: 5, items: { type: "string" } }
     }
   };
 }
@@ -848,7 +878,7 @@ async function makeDraft(env, input) {
       readingTime: "1분 미만",
       tags: aiDraft?.plus?.tags || fallbackTags(keyword),
       ctas: [{ label: button1, url: infoUrl }, { label: button2, url: infoUrl }],
-      html: aiDraft?.plus?.html || fallbackPlusHtml(keyword)
+      html: removeExternalUrlsFromPlusHtml(aiDraft?.plus?.html || fallbackPlusHtml(keyword))
     },
     info: {
       slug: infoSlug,
@@ -861,18 +891,126 @@ async function makeDraft(env, input) {
       readingTime: "3분",
       tags: aiDraft?.info?.tags || fallbackTags(keyword),
       ctas: [{ label: button1, url: officialUrl }, { label: button2, url: officialUrl }],
-      html: aiDraft?.info?.html || fallbackInfoHtml(keyword)
+      html: removeExternalUrlsFromPlusHtml(aiDraft?.info?.html || fallbackInfoHtml(keyword))
     }
   };
 }
 
 function normalizeNaverBody(text, plusUrl, linkText) {
   let clean = String(text || "").replace(/\n{3,}/g, "\n\n").trim();
-  clean = clean.replaceAll(plusUrl, "").replace(/\n{3,}/g, "\n\n").trim();
+  clean = clean
+    .replaceAll(plusUrl, "")
+    .split("\n")
+    .filter((line) => line.trim() !== linkText)
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
   const linkBlock = `${linkText}\n${plusUrl}`;
-  const maxBodyLength = 2000 - linkBlock.length - 4;
-  if (clean.length > maxBodyLength) clean = clean.slice(0, Math.max(1200, maxBodyLength)).replace(/\s+\S*$/, "").trim();
-  return `${clean}\n\n${linkBlock}`.trim();
+  const paragraphs = clean.split(/\n{2,}/).map((part) => part.trim()).filter(Boolean);
+  if (paragraphs.length === 0) return linkBlock;
+  return [paragraphs[0], linkBlock, ...paragraphs.slice(1)].join("\n\n").trim();
+}
+
+function normalizePaxnetHtml(html, plusUrl, linkText) {
+  let clean = String(html || "").trim();
+  clean = clean.replace(/```html|```/gi, "").trim();
+  const outerStyle = `padding:20px 0; margin:16px 0; background:#ffffff; font-family:'Apple SD Gothic Neo','Pretendard','Noto Sans KR',sans-serif; line-height:1.7; color:#111;`;
+  const labelStyle = `display:inline-block; background:#e9faf5; color:#008b72; font-size:13px; font-weight:700; padding:7px 12px; border-radius:999px; margin-bottom:14px;`;
+  const buttonStyle = `display:block; margin-top:20px; background:#e53935; color:#fff; padding:18px 20px; font-size:18px; font-weight:700; border-radius:50px; text-align:center; text-decoration:none; box-shadow:0 6px 12px rgba(229,57,53,0.25);`;
+  const cta = `<a href="${plusUrl}" target="_blank" style="${buttonStyle}">${linkText}</a><br>`;
+  const escapedUrl = plusUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const ctaRegex = new RegExp(`<a\\b[^>]*href=["']${escapedUrl}["'][^>]*>[\\s\\S]*?<\\/a>\\s*(?:<br\\s*\\/?>)?`, "i");
+
+  clean = clean.replace(/<div\s+style="[^"]*padding\s*:\s*20px\s+0[^"]*"[^>]*>/i, `<div style="${outerStyle}">`);
+  clean = clean.replace(/<(?:div|span)\s+style="[^"]*display\s*:\s*inline-block[^"]*"[^>]*>([\s\S]*?)<\/(?:div|span)>/i, `<span style="${labelStyle}">$1</span>`);
+
+  if (ctaRegex.test(clean)) {
+    clean = clean.replace(ctaRegex, cta);
+  } else {
+    clean = clean.replaceAll(plusUrl, "");
+    clean = clean.replace(/(<\/p>)/i, `$1\n\n  ${cta}`);
+    if (!clean.includes(plusUrl)) clean += `\n${cta}`;
+  }
+  if (!clean.startsWith("<p><br></p>")) {
+    clean = `<p><br></p>${clean.replace(/^<p><br><\/p>/i, "")}`;
+  }
+  return clean;
+}
+
+function escapeHtmlValue(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+}
+
+function buildPaxnetHtml(draft, plusUrl, linkText) {
+  const steps = Array.isArray(draft.steps) ? draft.steps.slice(0, 5) : [];
+  while (steps.length < 5) steps.push("공식 안내에서 최신 내용을 다시 확인합니다.");
+  const stepHtml = steps
+    .map((step, index) => {
+      const style = index === 4 ? "margin:0; font-size:16px;" : "margin:0 0 8px; font-size:16px;";
+      return `<div style="${style}"><strong>${index + 1}.</strong> ${escapeHtmlValue(step)}</div>`;
+    })
+    .join("");
+
+  return `<p><br></p><div style="padding:20px 0; margin:16px 0; background:#ffffff; font-family:'Apple SD Gothic Neo','Pretendard','Noto Sans KR',sans-serif; line-height:1.7; color:#111;"><span style="display:inline-block; background:#e9faf5; color:#008b72; font-size:13px; font-weight:700; padding:7px 12px; border-radius:999px; margin-bottom:14px;">${escapeHtmlValue(draft.label)}</span><h2 style="font-size:24px; margin:0 0 12px; line-height:1.4; color:#111;">${escapeHtmlValue(draft.title)}</h2><p style="margin:0 0 12px; font-size:16px;">${escapeHtmlValue(draft.intro)}</p><a href="${escapeHtmlValue(plusUrl)}" target="_blank" style="display:block; margin-top:20px; background:#e53935; color:#fff; padding:18px 20px; font-size:18px; font-weight:700; border-radius:50px; text-align:center; text-decoration:none; box-shadow:0 6px 12px rgba(229,57,53,0.25);">${escapeHtmlValue(linkText)}</a><br><p style="margin:0 0 12px; font-size:16px;">${escapeHtmlValue(draft.paragraph1)}</p><p style="margin:0 0 12px; font-size:16px;">${escapeHtmlValue(draft.paragraph2)}</p><div style="border-top:1px solid #e5e7eb; margin:20px 0; padding-top:16px;"><p style="margin:0 0 10px; font-size:16px; font-weight:700;">${escapeHtmlValue(draft.boxTitle)}</p><p style="margin:0 0 10px; font-size:16px;">${escapeHtmlValue(draft.boxParagraph1)}</p><p style="margin:0; font-size:16px;">${escapeHtmlValue(draft.boxParagraph2)}</p></div><p style="margin:0 0 12px; font-size:16px;">${escapeHtmlValue(draft.afterBoxParagraph1)}</p><p style="margin:0 0 12px; font-size:16px;">${escapeHtmlValue(draft.afterBoxParagraph2)}</p><div style="background:#f8f9fb; border-radius:12px; padding:15px; margin:18px 0 0;">${stepHtml}</div></div>`;
+}
+
+function paxnetExternalStyleGuide() {
+  return `
+팍스넷 발행문 내용 작성 기준:
+- HTML 태그는 만들지 말고, JSON 필드에 들어갈 순수 한국어 텍스트만 작성합니다.
+- label은 8~18자 정도의 짧은 안내 라벨로 작성합니다. 예: 부가가치세 신고 안내
+- title은 핵심 키워드가 앞쪽에 오는 검색형 제목으로 작성합니다.
+- intro, paragraph1, paragraph2, boxParagraph1, boxParagraph2, afterBoxParagraph1, afterBoxParagraph2는 각각 1~3문장으로 작성합니다.
+- boxTitle은 중간 설명 박스 제목으로 작성합니다.
+- steps는 확인 절차 5개를 순서대로 작성합니다. 각 항목 앞에 숫자는 붙이지 않습니다.
+- 과장 광고 문구보다 실제 정보 안내처럼 씁니다.
+`;
+}
+
+function naverExternalStyleGuide() {
+  return `
+네이버 외부유입 글 스타일 기준:
+- 샘플 글처럼 "제목 → 자연스러운 디스크립션 → 텍스트 링크 → 키워드형 소제목 → 본문 → 정보박스/리스트 → 주의사항 → FAQ → 해시태그" 흐름으로 작성합니다.
+- 상단 디스크립션은 250자 내외의 한 문단으로 씁니다. 검색자가 지금 왜 확인해야 하는지, 신청 대상이나 준비사항을 미리 확인하면 어떤 불편을 줄일 수 있는지 자연스럽게 설명합니다.
+- 상단 디스크립션의 마지막 문장은 반드시 "바로 확인해보세요."로 끝냅니다.
+- 상단 디스크립션에는 "헷갈릴 때가 많습니다", "많이 헷갈립니다", "혼란스러울 수 있습니다" 같은 표현을 쓰지 않습니다.
+- 상단 디스크립션에는 "어디서 켜야 하는지", "설치만 하면 바로 참여되는지", "먼저 확인하게 됩니다", "미리 봐두면", "시간을 줄일 수 있습니다"처럼 설명을 길게 늘이는 표현도 쓰지 않습니다.
+- 상단 디스크립션은 "상황 제시 → 확인하면 좋은 항목 2~3개 → 바로 확인해보세요." 흐름으로 씁니다.
+- 상단 디스크립션은 아래 공식에 맞춰 작성합니다.
+  공식 1: "{키워드/서비스} 이용 중 {상황}이 생겼다면 {핵심 안내}를 먼저 확인하는 것이 좋습니다. {확인 항목 2개}을 바로 확인해보세요."
+  공식 2: "{키워드/서비스} 이용 방법을 찾고 있다면 {확인 항목 3개}까지 한 번에 알아두면 편리합니다. 필요한 {문의/신청/조회} 방법을 지금 바로 확인해보세요."
+- 상단 디스크립션 예시: "선풍기, 난방기, 제습기 등 신일전자 생활가전 이용 중 문제가 생겼다면 고객센터 안내를 먼저 확인하는 것이 좋습니다. AS 접수 방법과 서비스센터 찾는 법을 바로 확인해보세요."
+- 상단 디스크립션 예시: "신일전자 고객센터 이용 방법을 찾고 있다면 전화 상담, AS 신청, 서비스센터 위치 확인까지 한 번에 알아두면 편리합니다. 필요한 문의 방법을 지금 바로 확인해보세요."
+- 디스크립션은 광고 문구처럼 쓰지 않습니다. "지금 바로", "놓치지 마세요", "완벽 정리" 같은 과장 표현보다 "미리 확인해두면", "접수 전에 살펴보면", "헷갈리기 쉬운 부분을 정리했습니다"처럼 사람이 쓴 안내문 톤을 사용합니다.
+- 첫 문단은 B블로그 설명을 그대로 복사하지 말고, 실제 검색자가 궁금해할 상황을 짧게 짚어 시작합니다.
+- A 블로그 링크는 본문 초반 디스크립션 바로 아래에 텍스트 링크 형태로 한 번 넣고, 본문 마지막에도 같은 링크를 반복하지 않습니다.
+- A 블로그 링크를 글 마지막 CTA처럼 쓰지 않습니다. 디스크립션 다음 줄에만 자연스럽게 배치하고, 마지막 문단은 정보 확인이나 주의사항으로 마무리합니다.
+- 링크 문구는 지나치게 광고처럼 쓰지 말고, "자세한 신청 기준 확인하기", "공식 안내 기준 확인하기", "예약 가능 여부 확인하기"처럼 키워드와 행동이 함께 보이게 씁니다.
+- 소제목은 "핵심 정보" 같은 추상어를 피하고, 반드시 키워드가 들어간 문장형으로 씁니다. 예: "삼성전자 온누리상품권 환급신청 대상", "공항버스 승차권 예약 전 확인할 점".
+- 본문은 짧은 문단 2~3개마다 소제목을 넣어 모바일에서 읽기 쉽게 나눕니다.
+- 표 대신 네이버에 붙여넣기 쉬운 줄형 요약을 사용합니다. 형식은 아래처럼 씁니다.
+  대상: 신청 가능한 사람 또는 조건
+  기간: 접수 또는 조회 기준
+  준비물: 필요한 서류나 정보
+  확인처: 공식 안내 또는 조회 화면
+- 중간에 정보박스처럼 보이는 "확인할 내용" 목록을 넣습니다. 각 줄은 "- "로 시작합니다.
+- FAQ는 2~4개를 넣되, 질문은 실제 검색자가 물을 법한 말투로 작성합니다.
+- FAQ 답변은 절대 비워두지 않습니다. 각 답변은 1~2문장으로 완성하고, "A."만 남기거나 중간에 끊긴 상태로 끝내지 않습니다.
+- 글 전체는 1500~2000자 안팎으로 유지하고, 문장 끝 패턴을 반복하지 않습니다.
+- 네이버 블로그와 네이버 카페 글은 같은 B블로그를 참고하더라도 중복문서처럼 보이면 안 됩니다. 제목, 첫 문단, 소제목 순서, 요약 항목명, FAQ 질문을 서로 다르게 구성합니다.
+- 네이버 블로그 글은 "검색자가 저장해두고 보는 정리글"처럼 작성합니다. 대상, 신청방법, 준비물, 주의사항, FAQ 순서로 차분하게 설명하고 문장은 공식 안내를 풀어쓴 느낌으로 씁니다.
+- 네이버 카페 글은 "카페 회원에게 필요한 정보를 빠르게 정리해주는 게시글"처럼 작성합니다. 첫 문단은 서비스 이용 상황과 확인 항목을 바로 안내하고, 주의사항과 체크리스트를 앞쪽에 배치한 뒤 신청방법을 설명합니다.
+- 카페 글에서는 블로그 글과 같은 소제목을 재사용하지 않습니다. 예를 들어 블로그가 "삼성카드 해지방법 신청 경로"라면 카페는 "삼성카드 해지 전에 먼저 봐야 할 부분"처럼 관점을 바꿉니다.
+- 카페 글 소제목은 10~20자 안팎으로 간결하게 쓰되, SEO에 필요한 핵심 키워드를 포함합니다. 예: "삼성카드 해지 전 확인", "삼성카드 앱 해지", "고객센터 상담 필요", "자동납부 해지 주의".
+- 카페 글 제목 후보는 검색 상위노출을 노리고 작성합니다. 핵심 키워드를 제목 앞쪽에 넣고, 사용자가 많이 찾는 보조 키워드(방법, 신청, 조회, 고객센터, 준비물, 주의사항 등)를 자연스럽게 결합합니다.
+- 카페 글 제목은 26~42자 안팎으로 만들고, 낚시성 표현보다 "삼성카드 해지방법 고객센터 상담 전 확인사항"처럼 검색어와 해결 포인트가 바로 보이게 씁니다.
+- 블로그 글 제목 후보는 정보형으로, 카페 글 제목 후보는 질문 해결형 또는 경험 공유형으로 만듭니다. 단, 과장된 낚시성 표현은 쓰지 않습니다.
+- 본문 어디에도 "카페글로 생성했습니다", "블로그 글로 생성했습니다", "아래는 작성한 글입니다", "요청하신 글입니다" 같은 생성 안내 문구를 넣지 않습니다. 독자가 바로 읽는 완성 게시글만 작성합니다.
+`;
 }
 
 async function makeNaverDraft(env, input) {
@@ -892,6 +1030,8 @@ async function makeNaverDraft(env, input) {
   const targetLength = Math.min(2000, Math.max(1500, Number(input.targetLength || 1800)));
   const bodyText = infoArticle.html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").slice(0, 10000);
   const draft = await openAiJson(env, `
+${naverExternalStyleGuide()}
+
 아래 B 블로그 글 내용을 바탕으로 ${channel}에 올릴 발행문을 작성합니다.
 목표 분량: 공백 포함 ${targetLength}자 내외, 반드시 1500~2000자 사이
 A 블로그 링크: ${plusUrl}
@@ -904,7 +1044,7 @@ B 본문 참고자료: ${bodyText}
 작성 규칙:
 - 관공서 안내문이나 AI 요약문처럼 딱딱하게 쓰지 않습니다.
 - 실제 블로그 운영자가 정보를 찾아보고 정리한 글처럼 씁니다. 단, 하지 않은 경험을 꾸며내지는 않습니다.
-- 첫 문단은 검색자가 헷갈리는 지점부터 시작합니다.
+- 첫 문단은 상단 디스크립션 역할을 합니다. 서비스 이용 상황을 바로 제시하고, 확인할 항목을 자연스럽게 연결한 뒤 "바로 확인해보세요."로 끝냅니다.
 - 3~4개의 소제목, 체크리스트, 요약 정리 블록을 넣습니다.
 - 요약 정리는 파이프 문자(|)를 쓰지 말고 "출발지: ..."처럼 한 줄씩 씁니다.
 - A 블로그 링크는 본문 하단에 1회만 안내합니다.
@@ -922,6 +1062,71 @@ B 본문 참고자료: ${bodyText}
     titles: draft.titles,
     body: normalizeNaverBody(draft.body, plusUrl, linkText),
     hashtags: draft.hashtags,
+    createdAt: new Date().toISOString()
+  };
+}
+
+async function makePaxnetDraft(env, input) {
+  const infoSlug = String(input.infoSlug || "").trim();
+  if (!infoSlug) throw new Error("B 블로그 글을 선택해 주세요.");
+
+  const [plusFile, infoFile] = await Promise.all([readArticlesFile(env, "plus"), readArticlesFile(env, "info")]);
+  const plusArticles = parseArticles(plusFile.content);
+  const infoArticles = parseArticles(infoFile.content);
+  const infoArticle = infoArticles.find((article) => article.slug === infoSlug);
+  if (!infoArticle) throw new Error(`B 블로그 글을 찾을 수 없습니다: ${infoSlug}`);
+
+  const baseSlug = stripKnownSuffix(infoSlug);
+  const matchedPlus = plusArticles.find((article) => article.slug === `${baseSlug}-quick-guide`) || plusArticles.find((article) => stripKnownSuffix(article.slug) === baseSlug);
+  const plusUrl = String(input.plusUrl || "").trim() || (matchedPlus ? articleUrl("plus", matchedPlus.slug) : "");
+  if (!plusUrl) throw new Error("연결할 A 블로그 링크를 입력해 주세요.");
+
+  const targetLength = Math.min(2500, Math.max(1600, Number(input.targetLength || 2200)));
+  const linkText = String(input.linkText || "자세한 내용 확인하기").trim();
+  const bodyText = infoArticle.html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").slice(0, 10000);
+
+  const draft = await openAiJson(env, `
+${paxnetExternalStyleGuide()}
+
+아래 B 블로그 글을 참고해 팍스넷 발행용 글 내용을 작성합니다. HTML은 만들지 말고 JSON 필드별 텍스트만 작성합니다.
+
+B 블로그 제목:
+${infoArticle.title}
+
+B 블로그 설명:
+${infoArticle.description}
+
+B 블로그 본문 참고자료:
+${bodyText}
+
+A 블로그 링크:
+${plusUrl}
+
+A 링크 버튼 문구:
+${linkText}
+
+목표 분량:
+HTML 태그 제외 한국어 본문 기준 ${targetLength}자 내외
+
+작성 규칙:
+- 제목은 검색 상위 노출을 고려해 핵심 키워드가 앞쪽에 오도록 작성합니다.
+- 본문은 레퍼런스 파일처럼 간결한 안내문 스타일로 작성합니다.
+- 첫 문단은 이용자가 왜 확인해야 하는지 바로 이해되는 자연스러운 설명으로 씁니다.
+- CTA 버튼 href는 반드시 A 블로그 링크를 사용합니다.
+- 버튼 문구는 입력된 A 링크 버튼 문구를 그대로 사용합니다.
+- 절차 박스에는 1~5번 확인 순서를 넣습니다.
+- B 블로그 본문을 그대로 복사하지 말고 팍스넷 외부유입용 안내문으로 재구성합니다.
+- 반환 JSON에는 label, title, intro, paragraph1, paragraph2, boxTitle, boxParagraph1, boxParagraph2, afterBoxParagraph1, afterBoxParagraph2, steps만 넣습니다.
+`, paxnetSchema(), "liferoom_cloud_paxnet_draft");
+
+  if (!draft.title || !draft.intro || !Array.isArray(draft.steps)) throw new Error("팍스넷 발행문 응답 형식이 올바르지 않습니다.");
+  return {
+    infoSlug: infoArticle.slug,
+    infoTitle: infoArticle.title,
+    plusSlug: matchedPlus?.slug || "",
+    plusUrl,
+    title: draft.title,
+    html: buildPaxnetHtml(draft, plusUrl, linkText),
     createdAt: new Date().toISOString()
   };
 }
@@ -954,6 +1159,10 @@ async function handleApi(request, env, pathname) {
 
   if (request.method === "POST" && pathname === "/api/naver-draft") {
     return json(await makeNaverDraft(env, await request.json()));
+  }
+
+  if (request.method === "POST" && pathname === "/api/paxnet-draft") {
+    return json(await makePaxnetDraft(env, await request.json()));
   }
 
   if (request.method === "POST" && pathname === "/api/publish-deploy") {

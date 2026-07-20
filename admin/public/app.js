@@ -1,5 +1,6 @@
 let currentDraft = null;
 let currentNaverDraft = null;
+let currentPaxnetDraft = null;
 let posts = { plus: [], info: [] };
 let slugEditedManually = false;
 let slugTimer = null;
@@ -196,6 +197,30 @@ function updateNaverMatchedPlus() {
   input.placeholder = matched ? "" : "매칭되는 A 글이 없으면 직접 입력하세요.";
 }
 
+function renderPaxnetArticleOptions() {
+  const select = $("#paxnetInfoSlug");
+  if (!select) return;
+  const current = select.value;
+  select.innerHTML = [
+    `<option value="">B 블로그 글을 선택하세요.</option>`,
+    ...posts.info
+      .slice()
+      .reverse()
+      .map((article) => `<option value="${escapeText(article.slug)}">${escapeText(article.title)} (${escapeText(article.slug)})</option>`)
+  ].join("");
+  if (current && posts.info.some((article) => article.slug === current)) select.value = current;
+  updatePaxnetMatchedPlus();
+}
+
+function updatePaxnetMatchedPlus() {
+  const select = $("#paxnetInfoSlug");
+  const input = $("#paxnetPlusUrl");
+  if (!select || !input) return;
+  const matched = findMatchingPlusArticle(select.value);
+  input.value = matched ? articleUrl("plus", matched) : "";
+  input.placeholder = matched ? "" : "매칭되는 A 글이 없으면 직접 입력하세요.";
+}
+
 function naverHistory() {
   try {
     return JSON.parse(localStorage.getItem("liferoomNaverHistory") || "[]");
@@ -226,6 +251,41 @@ function renderNaverHistory() {
       </div>
       <div class="history-actions">
         <button type="button" class="ghost-button mini-button" data-history-copy="${index}">복사</button>
+      </div>
+    </article>`)
+    .join("");
+}
+
+function paxnetHistory() {
+  try {
+    return JSON.parse(localStorage.getItem("liferoomPaxnetHistory") || "[]");
+  } catch {
+    return [];
+  }
+}
+
+function savePaxnetHistory(item) {
+  const history = [item, ...paxnetHistory()].slice(0, 30);
+  localStorage.setItem("liferoomPaxnetHistory", JSON.stringify(history));
+  renderPaxnetHistory();
+}
+
+function renderPaxnetHistory() {
+  const target = $("#paxnetHistory");
+  if (!target) return;
+  const history = paxnetHistory();
+  if (!history.length) {
+    target.innerHTML = `<div class="empty-mini">생성 기록이 없습니다.</div>`;
+    return;
+  }
+  target.innerHTML = history
+    .map((item, index) => `<article class="history-item">
+      <div>
+        <strong>${escapeText(item.title || "제목 없음")}</strong>
+        <p>${escapeText(item.infoTitle || item.infoSlug || "")}</p>
+      </div>
+      <div class="history-actions">
+        <button type="button" class="ghost-button mini-button" data-paxnet-history-copy="${index}">HTML 복사</button>
       </div>
     </article>`)
     .join("");
@@ -284,11 +344,42 @@ function renderNaverResult(draft) {
   });
 }
 
+function renderPaxnetResult(draft) {
+  currentPaxnetDraft = draft;
+  $("#paxnetResult").className = "naver-result";
+  $("#paxnetResult").innerHTML = `
+    <div class="result-box">
+      <div class="copy-row">
+        <h3>제목</h3>
+        <button type="button" class="ghost-button mini-button" id="copyPaxnetTitle">제목 복사</button>
+      </div>
+      <p class="hashtag-line">${escapeText(draft.title)}</p>
+      <p class="field-help">A 링크: <a href="${escapeText(draft.plusUrl)}" target="_blank" rel="noopener">${escapeText(draft.plusUrl)}</a></p>
+    </div>
+    <div class="result-box">
+      <div class="copy-row">
+        <h3>HTML 본문</h3>
+        <button type="button" class="ghost-button mini-button" id="copyPaxnetHtml">HTML 복사</button>
+      </div>
+      <textarea class="generated-body" readonly>${escapeText(draft.html)}</textarea>
+    </div>
+  `;
+  savePaxnetHistory({
+    title: draft.title,
+    html: draft.html,
+    infoSlug: draft.infoSlug,
+    infoTitle: draft.infoTitle,
+    plusUrl: draft.plusUrl,
+    createdAt: draft.createdAt
+  });
+}
+
 async function loadPosts({ quiet = false } = {}) {
   posts = await api("/api/articles");
   renderPosts("plus", posts.plus);
   renderPosts("info", posts.info);
   renderNaverArticleOptions();
+  renderPaxnetArticleOptions();
   if (!quiet) toast("글 목록을 불러왔습니다.");
 }
 
@@ -444,6 +535,64 @@ function bindNaver() {
   renderNaverHistory();
 }
 
+function bindPaxnet() {
+  const form = $("#paxnetForm");
+  if (!form) return;
+
+  $("#paxnetInfoSlug").addEventListener("change", updatePaxnetMatchedPlus);
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const submitButton = event.submitter;
+    if (submitButton) submitButton.disabled = true;
+
+    try {
+      $("#paxnetResult").className = "empty-state";
+      $("#paxnetResult").textContent = "팍스넷 HTML 발행문을 생성하는 중입니다.";
+      const draft = await api("/api/paxnet-draft", {
+        method: "POST",
+        body: JSON.stringify(formData(form))
+      });
+      renderPaxnetResult(draft);
+      toast("팍스넷 HTML 발행문을 생성했습니다.");
+    } catch (error) {
+      toast(error.message);
+      $("#paxnetResult").className = "empty-state";
+      $("#paxnetResult").textContent = error.message;
+    } finally {
+      if (submitButton) submitButton.disabled = false;
+    }
+  });
+
+  $("#paxnetResult").addEventListener("click", async (event) => {
+    if (event.target.closest("#copyPaxnetTitle") && currentPaxnetDraft) {
+      await copyText(currentPaxnetDraft.title, "제목을 복사했습니다.");
+      return;
+    }
+
+    if (event.target.closest("#copyPaxnetHtml") && currentPaxnetDraft) {
+      await copyText(currentPaxnetDraft.html, "HTML 본문을 복사했습니다.");
+    }
+  });
+
+  $("#paxnetHistory").addEventListener("click", async (event) => {
+    const button = event.target.closest("[data-paxnet-history-copy]");
+    if (!button) return;
+    const item = paxnetHistory()[Number(button.dataset.paxnetHistoryCopy)];
+    if (!item) return;
+    await copyText(item.html, "기록의 HTML 발행문을 복사했습니다.");
+  });
+
+  $("#clearPaxnetHistory").addEventListener("click", () => {
+    if (!confirm("팍스넷 발행문 생성 기록을 비울까요?")) return;
+    localStorage.removeItem("liferoomPaxnetHistory");
+    renderPaxnetHistory();
+    toast("기록을 비웠습니다.");
+  });
+
+  renderPaxnetHistory();
+}
+
 function bindJobs() {
   $("#refreshPosts").addEventListener("click", () => loadPosts().catch((error) => toast(error.message)));
 }
@@ -459,6 +608,7 @@ function bindSlugSuggestion() {
 bindNavigation();
 bindForm();
 bindNaver();
+bindPaxnet();
 bindJobs();
 bindSlugSuggestion();
 loadAiStatus();
