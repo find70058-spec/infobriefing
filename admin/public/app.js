@@ -621,10 +621,6 @@ function drawThumbnailLine(ctx, text, y, color, fontSize) {
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillStyle = color;
-  ctx.fillText(text, 319, y);
-  ctx.fillText(text, 321, y);
-  ctx.fillText(text, 320, y - 1);
-  ctx.fillText(text, 320, y + 1);
   ctx.fillText(text, 320, y);
 }
 
@@ -656,7 +652,7 @@ function renderThumbnail() {
   const visibleLines = lines.slice(0, 3);
   const lineCount = visibleLines.length;
   const fontSizes = visibleLines.map((line) => fitCanvasText(ctx, line, 450, 83, 39));
-  const lineGap = 98;
+  const lineGap = 147;
   const centerY = 250;
   const firstY = centerY - ((lineCount - 1) * lineGap) / 2;
 
