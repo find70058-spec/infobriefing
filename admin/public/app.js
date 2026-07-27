@@ -593,6 +593,149 @@ function bindPaxnet() {
   renderPaxnetHistory();
 }
 
+function cleanFileName(value) {
+  return String(value || "liferoom-thumbnail")
+    .trim()
+    .replace(/[^a-z0-9가-힣_-]+/gi, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    || "liferoom-thumbnail";
+}
+
+function drawRoundedRect(ctx, x, y, width, height, radius) {
+  const safeRadius = Math.min(radius, width / 2, height / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + safeRadius, y);
+  ctx.lineTo(x + width - safeRadius, y);
+  ctx.quadraticCurveTo(x + width, y, x + width, y + safeRadius);
+  ctx.lineTo(x + width, y + height - safeRadius);
+  ctx.quadraticCurveTo(x + width, y + height, x + width - safeRadius, y + height);
+  ctx.lineTo(x + safeRadius, y + height);
+  ctx.quadraticCurveTo(x, y + height, x, y + height - safeRadius);
+  ctx.lineTo(x, y + safeRadius);
+  ctx.quadraticCurveTo(x, y, x + safeRadius, y);
+  ctx.closePath();
+}
+
+function fitCanvasText(ctx, text, maxWidth, startSize, minSize) {
+  let size = startSize;
+  do {
+    ctx.font = `900 ${size}px "Pretendard", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif`;
+    if (ctx.measureText(text).width <= maxWidth) return size;
+    size -= 4;
+  } while (size >= minSize);
+  return minSize;
+}
+
+function drawChevron(ctx, x, y, size, color) {
+  ctx.strokeStyle = color;
+  ctx.lineWidth = Math.max(16, Math.round(size * 0.14));
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.beginPath();
+  ctx.moveTo(x, y - size / 2);
+  ctx.lineTo(x + size * 0.48, y);
+  ctx.lineTo(x, y + size / 2);
+  ctx.stroke();
+}
+
+function renderThumbnail() {
+  const form = $("#thumbnailForm");
+  const canvas = $("#thumbnailCanvas");
+  if (!form || !canvas) return;
+
+  const data = formData(form);
+  const ctx = canvas.getContext("2d");
+  const mainText = String(data.mainText || "바로 확인하기").trim() || "바로 확인하기";
+  const subText = String(data.subText || "").trim();
+  const backgroundColor = data.backgroundColor || "#ffffff";
+  const buttonColor = data.buttonColor || "#123ee8";
+  const arrowColor = data.arrowColor || "#ffd548";
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = backgroundColor;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  const button = {
+    x: 120,
+    y: subText ? 178 : 190,
+    width: 960,
+    height: 230,
+    radius: 76
+  };
+
+  ctx.shadowColor = "rgba(18, 32, 55, 0.08)";
+  ctx.shadowBlur = 28;
+  ctx.shadowOffsetY = 14;
+  drawRoundedRect(ctx, button.x, button.y, button.width, button.height, button.radius);
+  ctx.fillStyle = buttonColor;
+  ctx.fill();
+  ctx.shadowColor = "transparent";
+
+  const arrowAreaWidth = 230;
+  const textMaxWidth = button.width - arrowAreaWidth - 120;
+  const fontSize = fitCanvasText(ctx, mainText, textMaxWidth, 100, 54);
+  ctx.font = `900 ${fontSize}px "Pretendard", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif`;
+  ctx.textAlign = "left";
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = "#ffffff";
+  ctx.fillText(mainText, button.x + 86, button.y + button.height / 2 + 2);
+
+  const chevronY = button.y + button.height / 2;
+  const chevronSize = 92;
+  const firstX = button.x + button.width - 230;
+  drawChevron(ctx, firstX, chevronY, chevronSize, "#fff0b3");
+  drawChevron(ctx, firstX + 70, chevronY, chevronSize, "#ffe16b");
+  drawChevron(ctx, firstX + 140, chevronY, chevronSize, arrowColor);
+
+  if (subText) {
+    ctx.font = `800 34px "Pretendard", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = "#344054";
+    ctx.fillText(subText, canvas.width / 2, button.y + button.height + 78);
+  }
+}
+
+function bindThumbnail() {
+  const form = $("#thumbnailForm");
+  if (!form) return;
+
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    renderThumbnail();
+    toast("썸네일을 생성했습니다.");
+  });
+
+  form.addEventListener("input", renderThumbnail);
+
+  $$(".thumbnail-presets [data-thumbnail-preset]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const [buttonColor, arrowColor, backgroundColor] = button.dataset.thumbnailPreset.split(",");
+      formField(form, "buttonColor").value = buttonColor;
+      formField(form, "arrowColor").value = arrowColor;
+      formField(form, "backgroundColor").value = backgroundColor;
+      renderThumbnail();
+    });
+  });
+
+  $("#downloadThumbnail").addEventListener("click", () => {
+    const canvas = $("#thumbnailCanvas");
+    renderThumbnail();
+    canvas.toBlob((blob) => {
+      if (!blob) return;
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = `${cleanFileName(formField(form, "fileName").value)}.png`;
+      link.click();
+      URL.revokeObjectURL(link.href);
+      toast("PNG 파일로 저장했습니다.");
+    }, "image/png");
+  });
+
+  renderThumbnail();
+}
+
 function bindJobs() {
   $("#refreshPosts").addEventListener("click", () => loadPosts().catch((error) => toast(error.message)));
 }
@@ -609,6 +752,7 @@ bindNavigation();
 bindForm();
 bindNaver();
 bindPaxnet();
+bindThumbnail();
 bindJobs();
 bindSlugSuggestion();
 loadAiStatus();

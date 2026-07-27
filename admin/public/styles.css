@@ -499,6 +499,35 @@ button:disabled {
   font-size: 13px;
 }
 
+.thumbnail-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 2px 0 18px;
+}
+
+.thumbnail-presets button {
+  border: 1px solid var(--line);
+  padding: 9px 11px;
+  background: #fff;
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.thumbnail-preview {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8f9fb;
+}
+
+.thumbnail-preview canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  background: #fff;
+}
+
 .history-list {
   display: grid;
   gap: 10px;
