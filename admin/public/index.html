@@ -331,52 +331,34 @@
               <span>T</span>
               <div>
                 <h2>썸네일 생성기</h2>
-                <p>네이버 카페, 블로그, OG 이미지에 쓰기 좋은 바로 확인하기 썸네일을 만듭니다.</p>
+                <p>제공한 배경 이미지 위에 제목 문구를 얹어 640×640 썸네일을 만듭니다.</p>
               </div>
             </div>
 
             <label>
-              메인 문구
-              <input name="mainText" value="바로 확인하기" maxlength="18">
+              1줄
+              <input name="line1" value="속초시" maxlength="9">
             </label>
 
             <label>
-              보조 문구
-              <input name="subText" placeholder="선택 입력">
+              2줄
+              <input name="line2" value="민생지원금" maxlength="9">
             </label>
 
-            <div class="row">
-              <label>
-                버튼 색상
-                <input name="buttonColor" type="color" value="#123ee8">
-              </label>
-              <label>
-                화살표 색상
-                <input name="arrowColor" type="color" value="#ffd548">
-              </label>
-            </div>
+            <label>
+              3줄
+              <input name="line3" placeholder="비우면 2줄 썸네일">
+              <small class="field-help">3번째 줄을 비우면 두 줄이 중앙에 자연스럽게 배치됩니다.</small>
+            </label>
 
-            <div class="row">
-              <label>
-                배경 색상
-                <input name="backgroundColor" type="color" value="#ffffff">
-              </label>
-              <label>
-                파일명
-                <input name="fileName" value="liferoom-thumbnail">
-              </label>
-            </div>
-
-            <div class="thumbnail-presets" aria-label="썸네일 색상 프리셋">
-              <button type="button" data-thumbnail-preset="#123ee8,#ffd548,#ffffff">기본 파랑</button>
-              <button type="button" data-thumbnail-preset="#1f1bc4,#ffd548,#ffffff">진한 파랑</button>
-              <button type="button" data-thumbnail-preset="#e53935,#ffffff,#ffffff">레드</button>
-              <button type="button" data-thumbnail-preset="#12876f,#ffffff,#ffffff">그린</button>
-            </div>
+            <label>
+              파일명
+              <input name="fileName" value="liferoom-thumbnail">
+            </label>
 
             <div class="actions">
               <button type="submit" class="primary-button">썸네일 생성</button>
-              <button type="button" id="downloadThumbnail" class="secondary-button">PNG 다운로드</button>
+              <button type="button" id="downloadThumbnail" class="secondary-button">640×640 PNG 다운로드</button>
             </div>
           </form>
 
@@ -385,11 +367,11 @@
               <span>png</span>
               <div>
                 <h2>미리보기</h2>
-                <p>1200 × 630 크기로 저장됩니다.</p>
+                <p>제공한 배경 이미지는 고정으로 사용됩니다.</p>
               </div>
             </div>
             <div class="thumbnail-preview">
-              <canvas id="thumbnailCanvas" width="1200" height="630"></canvas>
+              <canvas id="thumbnailCanvas" width="640" height="640"></canvas>
             </div>
           </div>
         </div>
@@ -399,6 +381,6 @@
   </main>
 
   <div id="toast" class="toast"></div>
-  <script src="/app.js?v=thumbnail-generator-1"></script>
+  <script src="/app.js?v=thumbnail-generator-2"></script>
 </body>
 </html>

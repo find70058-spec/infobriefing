@@ -602,20 +602,8 @@ function cleanFileName(value) {
     || "liferoom-thumbnail";
 }
 
-function drawRoundedRect(ctx, x, y, width, height, radius) {
-  const safeRadius = Math.min(radius, width / 2, height / 2);
-  ctx.beginPath();
-  ctx.moveTo(x + safeRadius, y);
-  ctx.lineTo(x + width - safeRadius, y);
-  ctx.quadraticCurveTo(x + width, y, x + width, y + safeRadius);
-  ctx.lineTo(x + width, y + height - safeRadius);
-  ctx.quadraticCurveTo(x + width, y + height, x + width - safeRadius, y + height);
-  ctx.lineTo(x + safeRadius, y + height);
-  ctx.quadraticCurveTo(x, y + height, x, y + height - safeRadius);
-  ctx.lineTo(x, y + safeRadius);
-  ctx.quadraticCurveTo(x, y, x + safeRadius, y);
-  ctx.closePath();
-}
+const thumbnailTemplate = new Image();
+thumbnailTemplate.src = "/assets/thumbnail-template.png";
 
 function fitCanvasText(ctx, text, maxWidth, startSize, minSize) {
   let size = startSize;
@@ -627,16 +615,17 @@ function fitCanvasText(ctx, text, maxWidth, startSize, minSize) {
   return minSize;
 }
 
-function drawChevron(ctx, x, y, size, color) {
-  ctx.strokeStyle = color;
-  ctx.lineWidth = Math.max(16, Math.round(size * 0.14));
-  ctx.lineCap = "round";
-  ctx.lineJoin = "round";
-  ctx.beginPath();
-  ctx.moveTo(x, y - size / 2);
-  ctx.lineTo(x + size * 0.48, y);
-  ctx.lineTo(x, y + size / 2);
-  ctx.stroke();
+function drawThumbnailLine(ctx, text, y, color, startSize) {
+  if (!text) return;
+  const fontSize = fitCanvasText(ctx, text, 470, startSize, 36);
+  ctx.font = `900 ${fontSize}px "Pretendard", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.lineWidth = 5;
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.92)";
+  ctx.strokeText(text, 320, y);
+  ctx.fillStyle = color;
+  ctx.fillText(text, 320, y);
 }
 
 function renderThumbnail() {
@@ -646,55 +635,34 @@ function renderThumbnail() {
 
   const data = formData(form);
   const ctx = canvas.getContext("2d");
-  const mainText = String(data.mainText || "바로 확인하기").trim() || "바로 확인하기";
-  const subText = String(data.subText || "").trim();
-  const backgroundColor = data.backgroundColor || "#ffffff";
-  const buttonColor = data.buttonColor || "#123ee8";
-  const arrowColor = data.arrowColor || "#ffd548";
+  const lines = [data.line1, data.line2, data.line3]
+    .map((line) => String(line || "").trim())
+    .filter(Boolean);
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = backgroundColor;
+  ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  const button = {
-    x: 120,
-    y: subText ? 178 : 190,
-    width: 960,
-    height: 230,
-    radius: 76
-  };
-
-  ctx.shadowColor = "rgba(18, 32, 55, 0.08)";
-  ctx.shadowBlur = 28;
-  ctx.shadowOffsetY = 14;
-  drawRoundedRect(ctx, button.x, button.y, button.width, button.height, button.radius);
-  ctx.fillStyle = buttonColor;
-  ctx.fill();
-  ctx.shadowColor = "transparent";
-
-  const arrowAreaWidth = 230;
-  const textMaxWidth = button.width - arrowAreaWidth - 120;
-  const fontSize = fitCanvasText(ctx, mainText, textMaxWidth, 100, 54);
-  ctx.font = `900 ${fontSize}px "Pretendard", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif`;
-  ctx.textAlign = "left";
-  ctx.textBaseline = "middle";
-  ctx.fillStyle = "#ffffff";
-  ctx.fillText(mainText, button.x + 86, button.y + button.height / 2 + 2);
-
-  const chevronY = button.y + button.height / 2;
-  const chevronSize = 92;
-  const firstX = button.x + button.width - 230;
-  drawChevron(ctx, firstX, chevronY, chevronSize, "#fff0b3");
-  drawChevron(ctx, firstX + 70, chevronY, chevronSize, "#ffe16b");
-  drawChevron(ctx, firstX + 140, chevronY, chevronSize, arrowColor);
-
-  if (subText) {
-    ctx.font = `800 34px "Pretendard", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif`;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillStyle = "#344054";
-    ctx.fillText(subText, canvas.width / 2, button.y + button.height + 78);
+  if (thumbnailTemplate.complete && thumbnailTemplate.naturalWidth) {
+    ctx.drawImage(thumbnailTemplate, 0, 0, canvas.width, canvas.height);
   }
+
+  const ySets = {
+    1: [160],
+    2: [130, 188],
+    3: [108, 164, 220]
+  };
+  const yPositions = ySets[Math.min(lines.length || 2, 3)] || ySets[2];
+  const colors = ["#20349a", "#f00000", "#20349a"];
+  const sizes = lines.length >= 3 ? [48, 48, 44] : [56, 50];
+
+  if (!lines.length) {
+    lines.push("속초시", "민생지원금");
+  }
+
+  lines.slice(0, 3).forEach((line, index) => {
+    drawThumbnailLine(ctx, line, yPositions[index], colors[index], sizes[index] || 44);
+  });
 }
 
 function bindThumbnail() {
@@ -708,16 +676,6 @@ function bindThumbnail() {
   });
 
   form.addEventListener("input", renderThumbnail);
-
-  $$(".thumbnail-presets [data-thumbnail-preset]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const [buttonColor, arrowColor, backgroundColor] = button.dataset.thumbnailPreset.split(",");
-      formField(form, "buttonColor").value = buttonColor;
-      formField(form, "arrowColor").value = arrowColor;
-      formField(form, "backgroundColor").value = backgroundColor;
-      renderThumbnail();
-    });
-  });
 
   $("#downloadThumbnail").addEventListener("click", () => {
     const canvas = $("#thumbnailCanvas");
@@ -735,6 +693,8 @@ function bindThumbnail() {
 
   renderThumbnail();
 }
+
+thumbnailTemplate.addEventListener("load", renderThumbnail);
 
 function bindJobs() {
   $("#refreshPosts").addEventListener("click", () => loadPosts().catch((error) => toast(error.message)));

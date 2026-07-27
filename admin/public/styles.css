@@ -516,6 +516,8 @@ button:disabled {
 
 .thumbnail-preview {
   overflow: hidden;
+  max-width: 420px;
+  margin: 0 auto;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #f8f9fb;
