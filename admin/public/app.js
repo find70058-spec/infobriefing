@@ -615,13 +615,12 @@ function fitCanvasText(ctx, text, maxWidth, startSize, minSize) {
   return minSize;
 }
 
-function drawThumbnailLine(ctx, text, y, color, startSize) {
+function drawThumbnailLine(ctx, text, y, color, fontSize) {
   if (!text) return;
-  const fontSize = fitCanvasText(ctx, text, 470, startSize, 36);
   ctx.font = `900 ${fontSize}px "Pretendard", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.lineWidth = 5;
+  ctx.lineWidth = 6;
   ctx.strokeStyle = "rgba(255, 255, 255, 0.92)";
   ctx.strokeText(text, 320, y);
   ctx.fillStyle = color;
@@ -647,21 +646,22 @@ function renderThumbnail() {
     ctx.drawImage(thumbnailTemplate, 0, 0, canvas.width, canvas.height);
   }
 
-  const ySets = {
-    1: [160],
-    2: [130, 188],
-    3: [108, 164, 220]
-  };
-  const yPositions = ySets[Math.min(lines.length || 2, 3)] || ySets[2];
   const colors = ["#20349a", "#f00000", "#20349a"];
-  const sizes = lines.length >= 3 ? [48, 48, 44] : [56, 50];
 
   if (!lines.length) {
     lines.push("속초시", "민생지원금");
   }
 
-  lines.slice(0, 3).forEach((line, index) => {
-    drawThumbnailLine(ctx, line, yPositions[index], colors[index], sizes[index] || 44);
+  const visibleLines = lines.slice(0, 3);
+  const lineCount = visibleLines.length;
+  const baseSize = lineCount >= 3 ? 72 : 82;
+  const fontSizes = visibleLines.map((line) => fitCanvasText(ctx, line, 500, baseSize, 50));
+  const lineGap = lineCount >= 3 ? 80 : 92;
+  const centerY = lineCount >= 3 ? 250 : 252;
+  const firstY = centerY - ((lineCount - 1) * lineGap) / 2;
+
+  visibleLines.forEach((line, index) => {
+    drawThumbnailLine(ctx, line, firstY + index * lineGap, colors[index], fontSizes[index]);
   });
 }
 
