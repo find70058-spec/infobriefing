@@ -608,7 +608,7 @@ thumbnailTemplate.src = "/assets/thumbnail-template.png";
 function fitCanvasText(ctx, text, maxWidth, startSize, minSize) {
   let size = startSize;
   do {
-    ctx.font = `900 ${size}px "Pretendard", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif`;
+    ctx.font = `950 ${size}px "Noto Sans KR", "Apple SD Gothic Neo", Arial, sans-serif`;
     if (ctx.measureText(text).width <= maxWidth) return size;
     size -= 2;
   } while (size >= minSize);
@@ -617,14 +617,14 @@ function fitCanvasText(ctx, text, maxWidth, startSize, minSize) {
 
 function drawThumbnailLine(ctx, text, y, color, fontSize) {
   if (!text) return;
-  ctx.font = `900 ${fontSize}px "Pretendard", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif`;
+  ctx.font = `950 ${fontSize}px "Noto Sans KR", "Apple SD Gothic Neo", Arial, sans-serif`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillStyle = color;
-  ctx.fillText(text, 318.5, y);
-  ctx.fillText(text, 321.5, y);
-  ctx.fillText(text, 320, y - 1.5);
-  ctx.fillText(text, 320, y + 1.5);
+  ctx.fillText(text, 319, y);
+  ctx.fillText(text, 321, y);
+  ctx.fillText(text, 320, y - 1);
+  ctx.fillText(text, 320, y + 1);
   ctx.fillText(text, 320, y);
 }
 
@@ -655,10 +655,9 @@ function renderThumbnail() {
 
   const visibleLines = lines.slice(0, 3);
   const lineCount = visibleLines.length;
-  const baseSize = lineCount >= 3 ? 84 : 94;
-  const fontSizes = visibleLines.map((line) => fitCanvasText(ctx, line, 520, baseSize, 58));
-  const lineGap = lineCount >= 3 ? 88 : 100;
-  const centerY = lineCount >= 3 ? 248 : 250;
+  const fontSizes = visibleLines.map((line) => fitCanvasText(ctx, line, 450, 83, 39));
+  const lineGap = 98;
+  const centerY = 250;
   const firstY = centerY - ((lineCount - 1) * lineGap) / 2;
 
   visibleLines.forEach((line, index) => {
