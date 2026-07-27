@@ -651,7 +651,7 @@ function renderThumbnail() {
 
   const visibleLines = lines.slice(0, 3);
   const lineCount = visibleLines.length;
-  const fontSizes = visibleLines.map((line) => fitCanvasText(ctx, line, 450, 83, 39));
+  const fontSizes = visibleLines.map((line) => fitCanvasText(ctx, line, 450, 90, 39));
   const lineGap = 105;
   const centerY = 250;
   const firstY = centerY - ((lineCount - 1) * lineGap) / 2;
